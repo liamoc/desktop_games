@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "utils",
+    "archaeologist",
+    "solitude",
+    "soyuz"
+]

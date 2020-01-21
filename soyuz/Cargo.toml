@@ -1,0 +1,33 @@
+[package]
+name = "soyuz"
+description = "a tetris clone"
+version = "0.1.0"
+authors = ["Liam O’Connor <liamoc@cse.unsw.edu.au>"]
+
+
+[dependencies]
+lazy_static = "1.4.0"
+rand = "0.7.3"
+byteorder = "1.3.2"
+app_dirs = "1.2.1"
+tesserae ="0.2.2"
+
+[dependencies.sdl2]
+version = "0.32.2"
+default-features = false
+features = ["use_mac_framework","gfx"]
+
+[dependencies.utils]
+path = "../utils"
+
+
+[package.metadata.bundle]
+name="Soyuz"
+identifier="net.liamoc.soyuz"
+icon=["icon@2x.png"]
+version="0.1"
+copyright="Liam O'Connor 2020"
+category="public.app-category.puzzle-games"
+short_description="A tetris clone"
+osx_minimum_system_version="10.13.3"
+osx_frameworks=["SDL2", "SDL2_gfx"]
