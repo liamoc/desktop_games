@@ -182,7 +182,7 @@ impl <'r> MenuBar<'r> {
     pub fn disable(&mut self) {
         self.enabled = false;
         if let Some(j) = self.current {
-            if let Some(k) = self.menus[j].current {
+            if let Some(_) = self.menus[j].current {
                 self.menus[j].current = None
             } 
             self.current = None;
