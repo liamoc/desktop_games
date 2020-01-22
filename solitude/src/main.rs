@@ -23,7 +23,7 @@ use sdl2::gfx::framerate::FPSManager;
 use std::io::Cursor;
 use rand::{thread_rng};
 use rand::seq::SliceRandom;
-
+use utils::color::{*};
 
 struct GraphicsSet<T> {
     table: Graphic<T>,
@@ -34,60 +34,53 @@ struct GraphicsSet<T> {
     win: Graphic<T>,
     tile_set: TileSet,
 }
-const fn rgba(r:u8,g:u8,b:u8,a:u8) -> Color {
-    Color { r:r, g:g, b:b, a:a}
-}
 impl <'r> GraphicsSet<Texture<'r>> {
     const BG_DARK : Color = rgba(78,125,6,255);
     const BG_LIGHT : Color = rgba(115,155,22,255);
     const BACK_DARK : Color = rgba(32,74,135,255);
     const BACK_LIGHT : Color = rgba(52,101,164,255);
-    const TRANSPARENT : Color = rgba(0,0,0,0);
     const TRANSLUCENT : Color = rgba(255,255,255,128);
-    const RED : Color = rgba(164,0,0,255);
-    const BLACK : Color = rgba(0,0,0,255);
-    const WHITE : Color = rgba(255,255,255,255);
     fn blank_card(contents:Tile, border: Color) -> Graphic<()> {
         let mut ret = Graphic::blank(5, 6);
-        ret[(0,0)] = Tile{fg:border,bg:Self::TRANSPARENT,index:168};
-        ret[(1,0)] = Tile{fg:border,bg:Self::TRANSPARENT,index:169};
-        ret[(2,0)] = Tile{fg:border,bg:Self::TRANSPARENT,index:169};
-        ret[(3,0)] = Tile{fg:border,bg:Self::TRANSPARENT,index:169};
-        ret[(4,0)] = Tile{fg:border,bg:Self::TRANSPARENT,index:170};
-        ret[(0,1)] = Tile{fg:border,bg:Self::TRANSPARENT,index:184};
+        ret[(0,0)] = Tile{fg:border,bg:TRANSPARENT,index:168};
+        ret[(1,0)] = Tile{fg:border,bg:TRANSPARENT,index:169};
+        ret[(2,0)] = Tile{fg:border,bg:TRANSPARENT,index:169};
+        ret[(3,0)] = Tile{fg:border,bg:TRANSPARENT,index:169};
+        ret[(4,0)] = Tile{fg:border,bg:TRANSPARENT,index:170};
+        ret[(0,1)] = Tile{fg:border,bg:TRANSPARENT,index:184};
         ret[(1,1)] = contents;
         ret[(2,1)] = contents;
         ret[(3,1)] = contents;
-        ret[(4,1)] = Tile{fg:border,bg:Self::TRANSPARENT,index:186}; 
-        ret[(0,2)] = Tile{fg:border,bg:Self::TRANSPARENT,index:184};
+        ret[(4,1)] = Tile{fg:border,bg:TRANSPARENT,index:186}; 
+        ret[(0,2)] = Tile{fg:border,bg:TRANSPARENT,index:184};
         ret[(1,2)] = contents;
         ret[(2,2)] = contents;
         ret[(3,2)] = contents;
-        ret[(4,2)] = Tile{fg:border,bg:Self::TRANSPARENT,index:186}; 
-        ret[(0,3)] = Tile{fg:border,bg:Self::TRANSPARENT,index:184};
+        ret[(4,2)] = Tile{fg:border,bg:TRANSPARENT,index:186}; 
+        ret[(0,3)] = Tile{fg:border,bg:TRANSPARENT,index:184};
         ret[(1,3)] = contents;
         ret[(2,3)] = contents;
         ret[(3,3)] = contents;
-        ret[(4,3)] = Tile{fg:border,bg:Self::TRANSPARENT,index:186}; 
-        ret[(0,4)] = Tile{fg:border,bg:Self::TRANSPARENT,index:184};
+        ret[(4,3)] = Tile{fg:border,bg:TRANSPARENT,index:186}; 
+        ret[(0,4)] = Tile{fg:border,bg:TRANSPARENT,index:184};
         ret[(1,4)] = contents;
         ret[(2,4)] = contents;
         ret[(3,4)] = contents;
-        ret[(4,4)] = Tile{fg:border,bg:Self::TRANSPARENT,index:186}; 
-        ret[(0,5)] = Tile{fg:border,bg:Self::TRANSPARENT,index:200};
-        ret[(1,5)] = Tile{fg:border,bg:Self::TRANSPARENT,index:201};
-        ret[(2,5)] = Tile{fg:border,bg:Self::TRANSPARENT,index:201};
-        ret[(3,5)] = Tile{fg:border,bg:Self::TRANSPARENT,index:201};
-        ret[(4,5)] = Tile{fg:border,bg:Self::TRANSPARENT,index:202};
+        ret[(4,4)] = Tile{fg:border,bg:TRANSPARENT,index:186}; 
+        ret[(0,5)] = Tile{fg:border,bg:TRANSPARENT,index:200};
+        ret[(1,5)] = Tile{fg:border,bg:TRANSPARENT,index:201};
+        ret[(2,5)] = Tile{fg:border,bg:TRANSPARENT,index:201};
+        ret[(3,5)] = Tile{fg:border,bg:TRANSPARENT,index:201};
+        ret[(4,5)] = Tile{fg:border,bg:TRANSPARENT,index:202};
         ret
     }
     fn card_for(card: Card) -> Graphic<()> {
-        let mut g = Self::blank_card(Tile{fg: Self::WHITE, bg: Self::WHITE, index:0}, Self::WHITE);
+        let mut g = Self::blank_card(Tile{fg: WHITE, bg: WHITE, index:0}, WHITE);
         let fg = match card.suit {
-            Suit::Hearts | Suit::Diamonds => Self::RED,
-            _ => Self::BLACK,
+            Suit::Hearts | Suit::Diamonds => DARK_RED,
+            _ => BLACK,
         };
-        g[(1,1)] = Tile{fg: fg, bg: Self::WHITE, index: match card.value {
+        g[(1,1)] = Tile{fg: fg, bg: WHITE, index: match card.value {
             1 => 2,
             2..=9 => 51 + card.value as usize,
             10 => 113,
@@ -96,7 +89,7 @@ impl <'r> GraphicsSet<Texture<'r>> {
             13 => 12,
             _  => 30
         }};
-        g[(2,1)] = Tile{fg: fg, bg: Self::WHITE, index: match card.suit {
+        g[(2,1)] = Tile{fg: fg, bg: WHITE, index: match card.suit {
             Suit::Hearts => 147,
             Suit::Diamonds => 144,
             Suit::Clubs => 145,
@@ -110,12 +103,12 @@ impl <'r> GraphicsSet<Texture<'r>> {
             Suit::Spades => 6,
             Suit::Clubs => 9
         };
-        g[(1,2)] = Tile{fg:fg, bg: Self::WHITE, index: 288 + offset};
-        g[(2,2)] = Tile{fg:fg, bg: Self::WHITE, index: 289 + offset};
-        g[(3,2)] = Tile{fg:fg, bg: Self::WHITE, index: 290 + offset};
-        g[(1,3)] = Tile{fg:fg, bg: Self::WHITE, index: 304 + offset};
-        g[(2,3)] = Tile{fg:fg, bg: Self::WHITE, index: 305 + offset};
-        g[(3,3)] = Tile{fg:fg, bg: Self::WHITE, index: 306 + offset};
+        g[(1,2)] = Tile{fg:fg, bg: WHITE, index: 288 + offset};
+        g[(2,2)] = Tile{fg:fg, bg: WHITE, index: 289 + offset};
+        g[(3,2)] = Tile{fg:fg, bg: WHITE, index: 290 + offset};
+        g[(1,3)] = Tile{fg:fg, bg: WHITE, index: 304 + offset};
+        g[(2,3)] = Tile{fg:fg, bg: WHITE, index: 305 + offset};
+        g[(3,3)] = Tile{fg:fg, bg: WHITE, index: 306 + offset};
         g
     }
     fn new<T>(texture_creator: &'r TextureCreator<T>) -> GraphicsSet<Texture<'r>> {
@@ -123,7 +116,7 @@ impl <'r> GraphicsSet<Texture<'r>> {
         let tile_set = TileSet::load_from(Cursor::new(&include_bytes!("../tiles")[..]));
         let mut table = Graphic::solid(640/8, 480/8, Tile {fg: Self::BG_LIGHT, bg:Self::BG_DARK, index:255}).textured(texture_creator);
         let mut back_card = Self::blank_card(Tile {fg: Self::BACK_LIGHT, bg:Self::BACK_DARK, index:192}, Self::BACK_LIGHT).textured(texture_creator);
-        let mut cell = Self::blank_card(Tile{fg:Self::TRANSLUCENT, bg:Self::TRANSLUCENT, index:1}, Self::WHITE).textured(texture_creator);
+        let mut cell = Self::blank_card(Tile{fg:Self::TRANSLUCENT, bg:Self::TRANSLUCENT, index:1}, WHITE).textured(texture_creator);
         table.update_texture(&tile_set);
         back_card.update_texture(&tile_set);
         cell.update_texture(&tile_set);
@@ -148,8 +141,8 @@ impl <'r> GraphicsSet<Texture<'r>> {
             card.update_texture(&tile_set);
             cards.push(card)
         }
-        let mut white_border = Self::blank_card(Tile {fg: Self::TRANSPARENT, bg: Self::TRANSPARENT, index:1}, Self::WHITE).textured(texture_creator);
-        let mut black_border = Self::blank_card(Tile {fg: Self::TRANSPARENT, bg: Self::TRANSPARENT, index:1}, Self::BLACK).textured(texture_creator);
+        let mut white_border = Self::blank_card(Tile {fg: TRANSPARENT, bg: TRANSPARENT, index:1}, WHITE).textured(texture_creator);
+        let mut black_border = Self::blank_card(Tile {fg: TRANSPARENT, bg: TRANSPARENT, index:1}, BLACK).textured(texture_creator);
         white_border.update_texture(&tile_set);
         black_border.update_texture(&tile_set);
         let mut win = Graphic::load_from(Cursor::new(&include_bytes!("../win")[..])).unwrap().textured(&texture_creator);
@@ -802,10 +795,10 @@ fn main_loop<RULES:Rules>(mut window:Window, sdl_context: &Sdl) -> (Option<Varia
         if let Some((cards,_)) = &attached_cards {
             Stack::draw_cards(&cards, 0, (mx + grab_offset.0,my + grab_offset.1), &mut canvas, &graphics_set);
         }
-        move_count_gfx.draw_rect(0, 0, 4, 1, Tile {fg: GraphicsSet::TRANSPARENT, bg: GraphicsSet::TRANSPARENT, index:0});
-        move_count_gfx.draw_text(&table.move_count.to_string(), &graphics_set.tile_set , 0, 0, GraphicsSet::WHITE, GraphicsSet::TRANSPARENT);
-        move_count_gfx_shadow.draw_rect(0, 0, 4, 1, Tile {fg: GraphicsSet::TRANSPARENT, bg: GraphicsSet::TRANSPARENT, index:0});
-        move_count_gfx_shadow.draw_text(&table.move_count.to_string(), &graphics_set.tile_set , 0, 0, GraphicsSet::BLACK, GraphicsSet::TRANSPARENT);
+        move_count_gfx.draw_rect(0, 0, 4, 1, Tile {fg: TRANSPARENT, bg: TRANSPARENT, index:0});
+        move_count_gfx.draw_text(&table.move_count.to_string(), &graphics_set.tile_set , 0, 0, WHITE, TRANSPARENT);
+        move_count_gfx_shadow.draw_rect(0, 0, 4, 1, Tile {fg: TRANSPARENT, bg: TRANSPARENT, index:0});
+        move_count_gfx_shadow.draw_text(&table.move_count.to_string(), &graphics_set.tile_set , 0, 0, BLACK, TRANSPARENT);
         move_count_gfx.update_texture(&graphics_set.tile_set);
         move_count_gfx_shadow.update_texture(&graphics_set.tile_set);
         move_count_gfx_shadow.draw(&mut canvas, (10,wwh as i32-9-8));

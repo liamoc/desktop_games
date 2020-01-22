@@ -14,20 +14,9 @@ use std::io::Cursor;
 use std::env;
 use std::time::Instant;
 use utils::menu::{*};
-const fn rgba(r:u8,g:u8,b:u8,a:u8) -> Color {
-    Color { r:r, g:g, b:b, a:a}
-}
+use utils::color::{*};
+
 const REVEAL_BG : Color = rgba(183,146,103,255);
-const WHITE : Color = rgba(255,255,255,255);
-const BLUE : Color = rgba(32,74,135,255);
-const GREEN : Color = rgba(78,108,6,255);
-const PURPLE : Color = rgba(92,52,102,255);
-const TEAL : Color = rgba(27,128,120,255);
-const CRIMSON : Color = rgba(141,0,0,255);
-const AMBER : Color = rgba(159,76,0,255);
-const BROWN : Color = rgba(119,90,5,255);
-const CHARCOAL : Color = rgba(13,46,52,255);
-const YELLOW : Color = rgba(252,233,39,255);
 const UNREVEAL_BG : Color = rgba(193,125,17,255);
 const EDGE_HI : Color = rgba(203,153,72,255);
 const EDGE_LO : Color = rgba(169,109,0,255);

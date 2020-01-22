@@ -3,5 +3,6 @@ members = [
     "utils",
     "archaeologist",
     "solitude",
-    "soyuz"
+    "soyuz",
+    "corbynball"
 ]

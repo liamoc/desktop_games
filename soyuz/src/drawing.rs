@@ -4,10 +4,10 @@ use game::piece::{PieceShape};
 
 use sdl2::render::RenderTarget;
 use sdl2::render::{Canvas,Texture};
-use sdl2::pixels::Color;
 use tesserae::{*};
 use std::io::Cursor;
 use sdl2::render::TextureCreator;
+use utils::color::{*};
 pub struct BaseDrawingContext<'r> {
     pub tile_set : TileSet,
     chrome: Graphic<Texture<'r>>, 
@@ -106,12 +106,12 @@ impl <'r> BaseDrawingContext<'r> {
         c.clear();
         self.chrome.draw(c,(0,17));
         //let main = &self.ctx.main;
-        self.score.draw_rect(0,0,6,1,Tile{index:0,fg:Color::RGBA(0,0,0,0),bg:Color::RGBA(0,0,0,0)});
-        self.score.draw_text(&g.score().to_string(),&self.tile_set,0,0, Color::RGB(255,255,255),Color::RGBA(0,0,0,0));
-        self.top_score.draw_rect(0,0,6,1,Tile{index:0,fg:Color::RGBA(0,0,0,0),bg:Color::RGBA(0,0,0,0)});
-        self.top_score.draw_text(&g.top_score().to_string(),&self.tile_set,0,0, Color::RGB(255,255,255),Color::RGBA(0,0,0,0));
-        self.level.draw_rect(0,0,6,1,Tile{index:0,fg:Color::RGBA(0,0,0,0),bg:Color::RGBA(0,0,0,0)});
-        self.level.draw_text(&(g.current_level()+1).to_string(),&self.tile_set,0,0, Color::RGB(255,255,255),Color::RGBA(0,0,0,0));
+        self.score.draw_rect(0,0,6,1,Tile{index:0,fg:TRANSPARENT,bg:TRANSPARENT});
+        self.score.draw_text(&g.score().to_string(),&self.tile_set,0,0, WHITE,TRANSPARENT);
+        self.top_score.draw_rect(0,0,6,1,Tile{index:0,fg:TRANSPARENT,bg:TRANSPARENT});
+        self.top_score.draw_text(&g.top_score().to_string(),&self.tile_set,0,0, WHITE,TRANSPARENT);
+        self.level.draw_rect(0,0,6,1,Tile{index:0,fg:TRANSPARENT,bg:TRANSPARENT});
+        self.level.draw_text(&(g.current_level()+1).to_string(),&self.tile_set,0,0, WHITE,TRANSPARENT);
         self.score.update_texture(&self.tile_set);
         self.level.update_texture(&self.tile_set);
         self.top_score.update_texture(&self.tile_set);
