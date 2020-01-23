@@ -307,7 +307,7 @@ fn main_loop(width:u32,height:u32,mines: u32) -> Option<(u32,u32,u32)> {
     let texture_creator = canvas.texture_creator();
     let mut graphic = Graphic::blank(width*2+1, height*2+1).textured(&texture_creator);
     let mut game = Game::new(width,height,mines);
-    let tile_set = TileSet::load_from(Cursor::new(&include_bytes!("../tiles")[..]));
+    let tile_set = TileSet::load_from(Cursor::new(&include_bytes!("../../tiles")[..]));
     let mut cursor = Graphic::load_from(Cursor::new(&include_bytes!("../cursor")[..])).unwrap().textured(&texture_creator);
     let mut cursor_down = Graphic::load_from(Cursor::new(&include_bytes!("../cursor_down")[..])).unwrap().textured(&texture_creator);
     let mut win = Graphic::load_from(Cursor::new(&include_bytes!("../win")[..])).unwrap().textured(&texture_creator);
@@ -330,16 +330,16 @@ fn main_loop(width:u32,height:u32,mines: u32) -> Option<(u32,u32,u32)> {
     let mut start = Instant::now();
     let mut old_time = 50000;
     let mut menu = MenuBar::new((width*2+1)*8)
-                    .add(Menu::new("GAME",72,&texture_creator,&tile_set)
-                            .add(MenuItem::new("Quick", Keycode::F1,&texture_creator,&tile_set))
-                            .add(MenuItem::new("Easy", Keycode::F2,&texture_creator,&tile_set))
-                            .add(MenuItem::new("Normal", Keycode::F3,&texture_creator,&tile_set))
-                            .add(MenuItem::new("Hard", Keycode::F4,&texture_creator,&tile_set))
-                            .add(MenuItem::separator(56, &texture_creator,&tile_set))
-                            .add(MenuItem::new("Restart", Keycode::N,&texture_creator,&tile_set))
-                            .add(MenuItem::new("Quit", Keycode::F12,&texture_creator,&tile_set)))
-                    .add(Menu::new("VIEW",104,&texture_creator,&tile_set)
-                            .add(MenuItem::new("Micro-mode", Keycode::F9, &texture_creator, &tile_set)));
+                    .add(Menu::new("GAME",88,&texture_creator,&tile_set)
+                            .add(MenuItem::new("Quick",352, Keycode::F1,&texture_creator,&tile_set))
+                            .add(MenuItem::new("Easy", 353, Keycode::F2,&texture_creator,&tile_set))
+                            .add(MenuItem::new("Normal", 354, Keycode::F3,&texture_creator,&tile_set))
+                            .add(MenuItem::new("Hard", 355, Keycode::F4,&texture_creator,&tile_set))
+                            .add(MenuItem::separator(72, &texture_creator,&tile_set))
+                            .add(MenuItem::new("Restart", 15, Keycode::N,&texture_creator,&tile_set))
+                            .add(MenuItem::new("Quit", 363, Keycode::F12,&texture_creator,&tile_set)))
+                    .add(Menu::new("VIEW",112,&texture_creator,&tile_set)
+                            .add(MenuItem::new("Micro-mode", 360, Keycode::F9, &texture_creator, &tile_set)));
     let mut rate_limiter = FPSManager::new();
     rate_limiter.set_framerate(40).unwrap();
     let mut micro_mode = false;

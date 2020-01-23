@@ -113,7 +113,7 @@ impl <'r> GraphicsSet<Texture<'r>> {
     }
     fn new<T>(texture_creator: &'r TextureCreator<T>) -> GraphicsSet<Texture<'r>> {
 
-        let tile_set = TileSet::load_from(Cursor::new(&include_bytes!("../tiles")[..]));
+        let tile_set = TileSet::load_from(Cursor::new(&include_bytes!("../../tiles")[..]));
         let mut table = Graphic::solid(640/8, 480/8, Tile {fg: Self::BG_LIGHT, bg:Self::BG_DARK, index:255}).textured(texture_creator);
         let mut back_card = Self::blank_card(Tile {fg: Self::BACK_LIGHT, bg:Self::BACK_DARK, index:192}, Self::BACK_LIGHT).textured(texture_creator);
         let mut cell = Self::blank_card(Tile{fg:Self::TRANSLUCENT, bg:Self::TRANSLUCENT, index:1}, WHITE).textured(texture_creator);
@@ -771,22 +771,22 @@ fn main_loop<RULES:Rules>(mut window:Window, sdl_context: &Sdl) -> (Option<Varia
     let mut grab_offset : (i32,i32) = (0,0);
     let wwh = RULES::table_size().1;
     let mut menu = MenuBar::new(RULES::table_size().0)
-                    .add(Menu::new("GAME",136,&texture_creator,&graphics_set.tile_set)
-                            .add(MenuItem::new("Klondike 1-Draw", Keycode::F1,&texture_creator,&graphics_set.tile_set))
-                            .add(MenuItem::new("Klondike 3-Draw", Keycode::F2,&texture_creator,&graphics_set.tile_set))
-                            .add(MenuItem::separator(120, &texture_creator,&graphics_set.tile_set))
-                            .add(MenuItem::new("Spider 1-Suit", Keycode::F3,&texture_creator,&graphics_set.tile_set))
-                            .add(MenuItem::new("Spider 2-Suit", Keycode::F4,&texture_creator,&graphics_set.tile_set))
-                            .add(MenuItem::new("Spider 4-Suit", Keycode::F5,&texture_creator,&graphics_set.tile_set))
-                            .add(MenuItem::separator(120, &texture_creator,&graphics_set.tile_set))
-                            .add(MenuItem::new("Quit", Keycode::F12,&texture_creator,&graphics_set.tile_set)))
-                    .add(Menu::new("ACTION",80,&texture_creator,&graphics_set.tile_set)
-                            .add(MenuItem::new("Hint", Keycode::H,&texture_creator,&graphics_set.tile_set))
-                            .add(MenuItem::new("Undo", Keycode::Z,&texture_creator,&graphics_set.tile_set))
-                            .add(MenuItem::separator(70, &texture_creator, &graphics_set.tile_set))
-                            .add(MenuItem::new("Restart", Keycode::N,&texture_creator,&graphics_set.tile_set)))
-                    .add(Menu::new("VIEW",104,&texture_creator,&graphics_set.tile_set)
-                            .add(MenuItem::new("Micro-mode", Keycode::F9,&texture_creator, &graphics_set.tile_set)));
+                    .add(Menu::new("GAME",152,&texture_creator,&graphics_set.tile_set)
+                            .add(MenuItem::new("Klondike 1-Draw", 352, Keycode::F1,&texture_creator,&graphics_set.tile_set))
+                            .add(MenuItem::new("Klondike 3-Draw", 353, Keycode::F2,&texture_creator,&graphics_set.tile_set))
+                            .add(MenuItem::separator(136, &texture_creator,&graphics_set.tile_set))
+                            .add(MenuItem::new("Spider 1-Suit", 354, Keycode::F3,&texture_creator,&graphics_set.tile_set))
+                            .add(MenuItem::new("Spider 2-Suit", 355, Keycode::F4,&texture_creator,&graphics_set.tile_set))
+                            .add(MenuItem::new("Spider 4-Suit", 356, Keycode::F5,&texture_creator,&graphics_set.tile_set))
+                            .add(MenuItem::separator(136, &texture_creator,&graphics_set.tile_set))
+                            .add(MenuItem::new("Quit",363, Keycode::F12,&texture_creator,&graphics_set.tile_set)))
+                    .add(Menu::new("ACTION",88,&texture_creator,&graphics_set.tile_set)
+                            .add(MenuItem::new("Hint",9, Keycode::H,&texture_creator,&graphics_set.tile_set))
+                            .add(MenuItem::new("Undo",27, Keycode::Z,&texture_creator,&graphics_set.tile_set))
+                            .add(MenuItem::separator(72, &texture_creator, &graphics_set.tile_set))
+                            .add(MenuItem::new("Restart",15, Keycode::N,&texture_creator,&graphics_set.tile_set)))
+                    .add(Menu::new("VIEW",112,&texture_creator,&graphics_set.tile_set)
+                            .add(MenuItem::new("Micro-mode",360, Keycode::F9,&texture_creator, &graphics_set.tile_set)));
     let mut rate_limiter = FPSManager::new();
     rate_limiter.set_framerate(60).unwrap();
     let mut micro_mode = false;

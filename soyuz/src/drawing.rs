@@ -26,7 +26,7 @@ pub struct BaseDrawingContext<'r> {
 }
 impl <'r> BaseDrawingContext<'r> {
     pub fn new<T>(texture_creator: &'r TextureCreator<T>) -> BaseDrawingContext<'r> {
-        let tile_set = TileSet::load_from(Cursor::new(&include_bytes!("../tiles")[..]));
+        let tile_set = TileSet::load_from(Cursor::new(&include_bytes!("../../tiles")[..]));
         let mut graphic_garbage = Graphic::load_from(Cursor::new(&include_bytes!("../block_garbage")[..])).unwrap().textured(texture_creator);
         graphic_garbage.update_texture(&tile_set);
         let mut chrome = Graphic::load_from(Cursor::new(&include_bytes!("../chrome")[..])).unwrap().textured(texture_creator);

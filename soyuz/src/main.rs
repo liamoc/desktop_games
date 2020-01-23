@@ -121,18 +121,19 @@ pub fn main() {
     let texture_creator = canvas.texture_creator();
     let mut game = Tetris::new(&path).unwrap();
     let mut ctx = BaseDrawingContext::new(&texture_creator);
+
     let mut menu_bar = MenuBar::new(224)
-                        .add(Menu::new("GAME",128, &texture_creator, &ctx.tile_set)
-                             .add(MenuItem::new("Next Level",Keycode::Up,&texture_creator,&ctx.tile_set))
-                             .add(MenuItem::new("Previous Level",Keycode::Down,&texture_creator,&ctx.tile_set))
-                             .add(MenuItem::separator(112,&texture_creator,&ctx.tile_set))
-                             .add(MenuItem::new("More Junk",Keycode::Right,&texture_creator,&ctx.tile_set))
-                             .add(MenuItem::new("Less Junk",Keycode::Left,&texture_creator,&ctx.tile_set))
-                             .add(MenuItem::separator(112,&texture_creator,&ctx.tile_set))
-                             .add(MenuItem::new("Start",Keycode::Space,&texture_creator,&ctx.tile_set))
-                             .add(MenuItem::new("Clear Score", Keycode::F5, &texture_creator, &ctx.tile_set))
-                             .add(MenuItem::new("Quit",Keycode::Q,&texture_creator,&ctx.tile_set)))
-                        .add(Menu::new("VIEW",104,&texture_creator, &ctx.tile_set)
-                             .add(MenuItem::new("Micro-mode", Keycode::F9, &texture_creator, &ctx.tile_set)));
+                        .add(Menu::new("GAME",142, &texture_creator, &ctx.tile_set)
+                             .add(MenuItem::new("Next Level",65,Keycode::Up,&texture_creator,&ctx.tile_set))
+                             .add(MenuItem::new("Previous Level",67,Keycode::Down,&texture_creator,&ctx.tile_set))
+                             .add(MenuItem::separator(128,&texture_creator,&ctx.tile_set))
+                             .add(MenuItem::new("More Junk",64,Keycode::Right,&texture_creator,&ctx.tile_set))
+                             .add(MenuItem::new("Less Junk",66,Keycode::Left,&texture_creator,&ctx.tile_set))
+                             .add(MenuItem::separator(128,&texture_creator,&ctx.tile_set))
+                             .add(MenuItem::new("Start",364,Keycode::Space,&texture_creator,&ctx.tile_set))
+                             .add(MenuItem::new("Clear Score",356, Keycode::F5, &texture_creator, &ctx.tile_set))
+                             .add(MenuItem::new("Quit",18,Keycode::Q,&texture_creator,&ctx.tile_set)))
+                    .add(Menu::new("VIEW",112,&texture_creator,&ctx.tile_set)
+                            .add(MenuItem::new("Micro-mode",360, Keycode::F9, &texture_creator, &ctx.tile_set)));
     game_loop(&mut game, &mut ctx, &mut canvas, &mut event_pump, &mut menu_bar, &mut event_subsystem)
 }

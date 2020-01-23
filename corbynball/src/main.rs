@@ -216,7 +216,7 @@ impl <'r>Game<'r> {
         let mut cursor_g2 = Graphic::load_from(Cursor::new(&include_bytes!("../cursor_h")[..])).unwrap().textured(texture_creator);
         let wbs = Graphic::load_from(Cursor::new(&include_bytes!("../wbs")[..])).unwrap();
         
-        let tile_set = TileSet::load_from(Cursor::new(&include_bytes!("../tiles")[..]));
+        let tile_set = TileSet::load_from(Cursor::new(&include_bytes!("../../tiles")[..]));
         graphic.update_texture(&tile_set);
         ball_g1.update_texture(&tile_set);
         ball_g2.update_texture(&tile_set);
@@ -664,16 +664,16 @@ fn main() {
     let mut micro_mode = false;
     let mut menu = MenuBar::new(WIDTH*16)
                     .add(Menu::new("GAME",72,&texture_creator,&game.tile_set)
-                            .add(MenuItem::new("New", Keycode::N,&texture_creator,&game.tile_set))
-                            .add(MenuItem::new("Pause", Keycode::P,&texture_creator,&game.tile_set))
+                            .add(MenuItem::new("New", 15,Keycode::N,&texture_creator,&game.tile_set))
+                            .add(MenuItem::new("Pause",17, Keycode::P,&texture_creator,&game.tile_set))
                             .add(MenuItem::separator(56, &texture_creator,&game.tile_set))
-                            .add(MenuItem::new("Quit", Keycode::F12,&texture_creator,&game.tile_set)))
-                    .add(Menu::new("SPEED",72,&texture_creator,&game.tile_set) 
-                            .add(MenuItem::new("Slow", Keycode::F1,&texture_creator,&game.tile_set))
-                            .add(MenuItem::new("Medium", Keycode::F2,&texture_creator,&game.tile_set))
-                            .add(MenuItem::new("Fast", Keycode::F3,&texture_creator,&game.tile_set)))
-                    .add(Menu::new("VIEW",104,&texture_creator,&game.tile_set)
-                            .add(MenuItem::new("Micro-mode", Keycode::F9, &texture_creator, &game.tile_set)));
+                            .add(MenuItem::new("Quit", 363, Keycode::F12,&texture_creator,&game.tile_set)))
+                    .add(Menu::new("SPEED",80,&texture_creator,&game.tile_set) 
+                            .add(MenuItem::new("Slow", 352,Keycode::F1,&texture_creator,&game.tile_set))
+                            .add(MenuItem::new("Medium", 353,Keycode::F2,&texture_creator,&game.tile_set))
+                            .add(MenuItem::new("Fast", 354, Keycode::F3,&texture_creator,&game.tile_set)))
+                    .add(Menu::new("VIEW",112,&texture_creator,&game.tile_set)
+                            .add(MenuItem::new("Micro-mode",360, Keycode::F9, &texture_creator, &game.tile_set)));
     loop {
         if splash.is_none() { 
             game.tick();
@@ -712,7 +712,7 @@ fn main() {
                     level_splash.draw(&mut canvas, (WIDTH as i32 * 8 - (11*4), HEIGHT as i32 * 8 - 16 + 17 ));
                     status_level.draw(&mut canvas, (WIDTH as i32 * 8 - (8 * 4) + if level < 10 { 4} else {0}, HEIGHT as i32 * 8 - 4 + 17));
                 },
-                Splash::Loss => lose.draw(&mut canvas, (WIDTH as i32 * 8 - (20*4), HEIGHT as i32 * 8 - (20*4) + 17 )),
+                Splash::Loss => lose.draw(&mut canvas, (WIDTH as i32 * 8 - (21*4), HEIGHT as i32 * 8 - (21*4) + 17 )),
                 Splash::Pause => paused_splash.draw(&mut canvas, (WIDTH as i32 * 8 - (11*4), HEIGHT as i32 * 8 - 20 + 17 )),
             }
         }

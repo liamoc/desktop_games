@@ -11,20 +11,24 @@ use sdl2::{EventSubsystem};
 pub struct MenuItem<'r> {
     graphic: Graphic<Texture<'r>>,
     hl_graphic: Graphic<Texture<'r>>,
-    keycode: Option<Keycode>
+    keycode: Option<Keycode>,
+    k_graphic: Option<Graphic<Texture<'r>>>
 }
 impl <'r>MenuItem<'r> {
-    pub fn new<T>(title: &str, keycode: Keycode, texture_creator: &'r TextureCreator<T>, tile_set : &TileSet) -> Self {
+    pub fn new<T>(title: &str, help_tile: usize, keycode: Keycode, texture_creator: &'r TextureCreator<T>, tile_set : &TileSet) -> Self {
         let mut g = Graphic::blank(title.len() as u32,1).textured(texture_creator);
         g.draw_text(title, tile_set, 0, 0, Color::RGB(0,0,0), Color::RGBA(0,0,0,0));
         g.update_texture(tile_set);
         let mut hg = Graphic::blank(title.len() as u32,1).textured(texture_creator);
         hg.draw_text(title, tile_set, 0, 0, Color::RGB(255,255,255), Color::RGBA(0,0,0,0));
         hg.update_texture(tile_set);
+        let mut k_graphic = Graphic::solid(1,1,Tile{index:help_tile,fg: Color::RGB(141,0,0), bg:Color::RGBA(0,0,0,0)}).textured(texture_creator);
+        k_graphic.update_texture(tile_set);
         MenuItem {
             graphic: g,
             hl_graphic: hg,
-            keycode: Some(keycode)
+            keycode: Some(keycode),
+            k_graphic: Some(k_graphic)
         }
     }
     pub fn separator<T>(width:u32,  texture_creator: &'r TextureCreator<T>, tile_set : &TileSet) -> Self {
@@ -35,7 +39,8 @@ impl <'r>MenuItem<'r> {
         MenuItem {
             graphic: g,
             hl_graphic: hg,
-            keycode: None
+            keycode: None,
+            k_graphic: None
         }
     }
 }
@@ -158,6 +163,9 @@ impl <'r> MenuBar<'r> {
                         self.menus[j].items[k].graphic.draw(canvas,(x+8,y));
                         y += 16;
                     }
+                }
+                if let Some(kg) = &self.menus[j].items[k].k_graphic {
+                    kg.draw(canvas, (x + self.menus[j].width as i32 - 16,y-16));
                 }
             }
         }
