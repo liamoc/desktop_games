@@ -604,6 +604,7 @@ impl <'r>Game<'r> {
 enum Splash {
     Level,
     Loss,
+    Pause,
 }
 
 enum Move {
@@ -640,6 +641,8 @@ fn main() {
     lose.update_texture(&game.tile_set);
     let mut level_splash = Graphic::load_from(Cursor::new(&include_bytes!("../level_splash")[..])).unwrap().textured(&texture_creator);
     level_splash.update_texture(&game.tile_set);
+    let mut paused_splash = Graphic::load_from(Cursor::new(&include_bytes!("../paused_splash")[..])).unwrap().textured(&texture_creator);
+    paused_splash.update_texture(&game.tile_set);
     let mut rate_limiter = FPSManager::new();    
     rate_limiter.set_framerate(40).unwrap();
     let mut micro_mode = false;    
@@ -653,7 +656,9 @@ fn main() {
                             .add(MenuItem::new("Slow", 352,Keycode::F1,&texture_creator,&game.tile_set))
                             .add(MenuItem::new("Medium", 353, Keycode::F2,&texture_creator,&game.tile_set))
                             .add(MenuItem::new("Fast", 354, Keycode::F3,&texture_creator,&game.tile_set))
-                            .add(MenuItem::new("Andale!", 355, Keycode::F4,&texture_creator,&game.tile_set)))
+                            .add(MenuItem::new("Andale!", 355, Keycode::F4,&texture_creator,&game.tile_set))
+                            .add(MenuItem::separator(72, &texture_creator,&game.tile_set))
+                            .add(MenuItem::new("Pause", 17, Keycode::P,&texture_creator,&game.tile_set)))
                     .add(Menu::new("VIEW",112,&texture_creator,&game.tile_set)
                             .add(MenuItem::new("Micro-mode",360, Keycode::F9, &texture_creator, &game.tile_set)));
     let mut cx = 0;
@@ -738,6 +743,7 @@ fn main() {
                     status_level.draw(&mut canvas, (WIDTH as i32 * 6 - (8 * 4) + if level < 10 { 4} else {0}, HEIGHT as i32 * 6 - 4 + 17));
                 },
                 Splash::Loss => lose.draw(&mut canvas, (WIDTH as i32 * 6 - (21*4), HEIGHT as i32 * 6 - (21*4) + 17 )),
+                Splash::Pause => paused_splash.draw(&mut canvas, (WIDTH as i32 * 6 - (11*4), HEIGHT as i32 * 6 - 20 + 17 )),
             }
         }
         game.cursor_gfx[c].draw_enlarged(&mut canvas,(cx-10,cy-10));
@@ -793,6 +799,8 @@ fn main() {
                   => game.speed = 20,
                 Event::KeyDown { keycode: Some(Keycode::F4), ..}
                   => game.speed = 10,
+                Event::KeyDown { keycode: Some(Keycode::P), ..}
+                  => splash = Some(Splash::Pause),
                 Event::KeyDown { keycode: Some(Keycode::F6), ..}
                   => game.won_level = true,
                 Event::MouseButtonUp {..} if cy > 17 => {
