@@ -83,13 +83,13 @@ struct Collision {
     collision_type: CollisionType,
     sides:(bool,bool,bool,bool)
 }
-struct Game<'r> {
-    board: Graphic<Texture<'r>>,
+struct Game<'r,T> {
+    board: Graphic<TileCache<'r,T>>,
     ball_g1: Graphic<Texture<'r>>,
     ball_g2: Graphic<Texture<'r>>,
     cursor_g1: Graphic<Texture<'r>>,
     cursor_g2: Graphic<Texture<'r>>,
-    overlay: Graphic<()>,
+    overlay: Graphic<TileCache<'r,T>>,
     blocked: [[bool;HEIGHT as usize];WIDTH as usize],
     tile_set: TileSet,
     subtick: u32,
@@ -103,7 +103,6 @@ struct Game<'r> {
     wb_s: (Graphic<Texture<'r>>, Graphic<Texture<'r>>, Graphic<Texture<'r>>),
     wb_e: (Graphic<Texture<'r>>, Graphic<Texture<'r>>, Graphic<Texture<'r>>),
     wb_w: (Graphic<Texture<'r>>, Graphic<Texture<'r>>, Graphic<Texture<'r>>),
-    overlay_tiles: (Graphic<Texture<'r>>, Graphic<Texture<'r>>, Graphic<Texture<'r>>,Graphic<Texture<'r>>, Graphic<Texture<'r>>,Graphic<Texture<'r>>),
     percentage: u32,
     lives: u32,
     speed: u32,
@@ -176,7 +175,7 @@ impl Ball {
     }
 }
 
-impl <'r>Game<'r> {
+impl <'r,X>Game<'r,X> {
     fn get_wb<T,U>(graphic: &Graphic<U>,offset: u32, texture_creator : &'r TextureCreator<T>, tile_set : &TileSet) 
         -> (Graphic<Texture<'r>>, Graphic<Texture<'r>>,Graphic<Texture<'r>>) {
         let mut base = Graphic::blank(2,2).textured(texture_creator);
@@ -190,8 +189,8 @@ impl <'r>Game<'r> {
         tip.update_texture(tile_set);
         (base,mid,tip)
     }
-    fn new<T>(texture_creator : &'r TextureCreator<T>) -> Game<'r> {
-        let mut graphic = Graphic::blank(WIDTH*2, HEIGHT*2).textured(texture_creator); 
+    fn new(texture_creator : &'r TextureCreator<X>) -> Self {
+        let mut graphic = Graphic::blank(WIDTH*2, HEIGHT*2).tile_cache_textured(texture_creator); 
         for x in 0..WIDTH*2 {
             for y in 0..HEIGHT*2 {
                 graphic[(x,y)] = Tile { index: match (x%2 == 0, y%2 ==0) {
@@ -227,18 +226,6 @@ impl <'r>Game<'r> {
         let wb_e = Self::get_wb(&wbs,4,texture_creator,&tile_set);
         let wb_w = Self::get_wb(&wbs,6,texture_creator,&tile_set);
         let overlay = Graphic::blank(WIDTH*2, HEIGHT*2); 
-        let mut o1 = Graphic::solid(1,1,Self::EDGE_HI_FILL).textured(texture_creator);
-        let mut o2 = Graphic::solid(1,1,Self::EDGE_LO_FILL).textured(texture_creator);
-        let mut o3 = Graphic::solid(1,1,Self::OUTER_CORNER).textured(texture_creator);
-        let mut o4 = Graphic::solid(1,1,Self::INNER_CORNER).textured(texture_creator);
-        let mut o5 = Graphic::solid(1,1,Self::UNREVEAL_BG_FILL).textured(texture_creator);
-        let mut o6 = Graphic::solid(1,1,Tile{fg:TRANSPARENT,bg:TRANSPARENT,index:0}).textured(texture_creator);
-        o1.update_texture(&tile_set);
-        o2.update_texture(&tile_set);
-        o3.update_texture(&tile_set);
-        o4.update_texture(&tile_set);
-        o5.update_texture(&tile_set);
-        o6.update_texture(&tile_set);
         Game {
             tile_set: tile_set,
             board: graphic,
@@ -255,8 +242,7 @@ impl <'r>Game<'r> {
             blue: None,
             wb_n, wb_s,wb_e,wb_w,
             blocked: [[false;HEIGHT as usize];WIDTH as usize],
-            overlay: overlay,
-            overlay_tiles: (o1,o2,o3,o4,o5,o6),
+            overlay: overlay.tile_cache_textured(texture_creator),
             lives: 0,
             percentage: 0,
             speed: 1
@@ -502,6 +488,7 @@ impl <'r>Game<'r> {
                 }
             }
         }
+        self.overlay.update_texture(&self.tile_set);
     }
     fn block_area(&mut self,tx:i32,ty:i32,bx:i32,by:i32) {
         for i in tx..=bx {
@@ -606,24 +593,7 @@ impl <'r>Game<'r> {
                 &self.ball_g2
             }.draw(canvas, (i.p.0  * 4,i.p.1 *4 + 17));
         }
-        let (eh,el,oc,ic,bg,tr) = &self.overlay_tiles;
-        for i in 0..WIDTH as u32 *2 {
-            for j in 0..HEIGHT as u32 *2 {
-                if self.overlay[(i,j)] == Self::EDGE_HI_FILL {
-                    &eh
-                } else if self.overlay[(i,j)] == Self::EDGE_LO_FILL {
-                    &el
-                } else if self.overlay[(i,j)] == Self::OUTER_CORNER {
-                    &oc
-                } else if self.overlay[(i,j)] == Self::INNER_CORNER {
-                    &ic
-                } else if self.overlay[(i,j)] == Self::UNREVEAL_BG_FILL {
-                    &bg
-                } else {
-                    &tr
-                }.draw(canvas,(i as i32*8, j as i32 *8+17))
-            }
-        }
+        self.overlay.draw(canvas,(0,17));
     }
 }
 enum Splash {

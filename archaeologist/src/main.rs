@@ -237,7 +237,7 @@ impl Game {
         board.set_tile(offset_x , offset_y+1, tiles[4]);
 
     }
-    fn draw<T>(&self, board: &mut Graphic<T>, chrome: &mut Graphic<T>, tile_set: &TileSet) {
+    fn draw<T,U>(&self, board: &mut Graphic<T>, chrome: &mut Graphic<U>, tile_set: &TileSet) {
         chrome.draw_rect(0,0,self.width*2+2, 1, Tile{index:0,fg:UI_DARK, bg:UI_LIGHT} );
         chrome.set_tile(1, 0, Tile{index:112,fg:CRIMSON, bg:UI_LIGHT});
         chrome.draw_text(&(self.num_flags - self.revealed_mines() as i32).to_string(), tile_set , 3, 0, CHARCOAL, UI_LIGHT);
@@ -305,7 +305,7 @@ fn main_loop(width:u32,height:u32,mines: u32) -> Option<(u32,u32,u32)> {
     let mut event_subsystem = sdl_context.event().unwrap();
     let mut event_pump = sdl_context.event_pump().unwrap();
     let texture_creator = canvas.texture_creator();
-    let mut graphic = Graphic::blank(width*2+1, height*2+1).textured(&texture_creator);
+    let mut graphic = Graphic::blank(width*2+1, height*2+1).tile_cache_textured(&texture_creator);
     let mut game = Game::new(width,height,mines);
     let tile_set = TileSet::load_from(Cursor::new(&include_bytes!("../../tiles")[..]));
     let mut cursor = Graphic::load_from(Cursor::new(&include_bytes!("../cursor")[..])).unwrap().textured(&texture_creator);
