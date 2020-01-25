@@ -551,16 +551,33 @@ fn main() {
                 },              
                 Event::KeyDown { keycode: Some(Keycode::F7), ..}
                   => game.relative_controls = !game.relative_controls,
+                Event::KeyDown { keycode: Some(Keycode::F9), ..} => {
+                    if micro_mode {
+                        micro_mode = false;
+                        canvas.window_mut().set_size(WIDTH*12, HEIGHT*12+16+17).unwrap_or_default();
+                    } else {
+                        micro_mode = true;
+                        canvas.window_mut().set_size(WIDTH*6, (HEIGHT*12+16+17)/2).unwrap_or_default();
+                    }
+                },
+                Event::KeyDown { keycode: Some(Keycode::F1), ..}
+                  => game.speed = 12,
+                Event::KeyDown { keycode: Some(Keycode::F2), ..}
+                  => game.speed = 6,
+                Event::KeyDown { keycode: Some(Keycode::F3), ..}
+                  => game.speed = 2,
+                Event::KeyDown { keycode: Some(Keycode::F4), ..}
+                  => game.speed = 1,
+                Event::KeyDown { keycode: Some(Keycode::N), .. } => {
+                    game.set_up_level(level);
+                    splash = Some(Splash::Level);
+                },
                 Event::KeyDown {..} if splash.is_some() => {
                     splash = None  
                 }
                 Event::MouseButtonUp {..} if splash.is_some() => {
                     splash = None
                 }
-                Event::KeyDown { keycode: Some(Keycode::N), .. } => {
-                    game.set_up_level(level);
-                    splash = Some(Splash::Level);
-                },
                 Event::KeyDown { keycode: Some(Keycode::Up), ..} |
                 Event::KeyDown { keycode: Some(Keycode::W), ..}
                   => game.make_move(Direction::N),
@@ -575,29 +592,12 @@ fn main() {
                   => game.make_move(Direction::E),
                 Event::KeyDown { keycode: Some(Keycode::P), ..}
                   => splash = Some(Splash::Pause),
-                Event::KeyDown { keycode: Some(Keycode::F1), ..}
-                  => game.speed = 12,
-                Event::KeyDown { keycode: Some(Keycode::F2), ..}
-                  => game.speed = 6,
-                Event::KeyDown { keycode: Some(Keycode::F3), ..}
-                  => game.speed = 2,
-                Event::KeyDown { keycode: Some(Keycode::F4), ..}
-                  => game.speed = 1,
                 Event::MouseButtonUp {..} if cy > 17 => {
                     match game.dir_for_cursor(cx, cy) {
                         None => {},
                         Some(d) => game.make_move(d),
                     }
                 }
-                Event::KeyDown { keycode: Some(Keycode::F9), ..} => {
-                    if micro_mode {
-                        micro_mode = false;
-                        canvas.window_mut().set_size(WIDTH*12, HEIGHT*12+16+17).unwrap_or_default();
-                    } else {
-                        micro_mode = true;
-                        canvas.window_mut().set_size(WIDTH*6, (HEIGHT*12+16+17)/2).unwrap_or_default();
-                    }
-                },
                 Event::MouseMotion { x,y,..} if y < 17 => {
                     cx = x;
                     cy = y;
