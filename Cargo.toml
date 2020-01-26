@@ -8,5 +8,6 @@ members = [
     "cylons",
     "vermin",
     "taipan",
-    "upto11"
+    "upto11",
+    "gatchi",
 ]
