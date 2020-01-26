@@ -72,6 +72,9 @@ struct Game<'r> {
     cursor_gfx: [OutlinedTile<'r>;9],
     player: (i32,i32),
     dangers: Vec<((i32,i32),DangerType)>,
+    render_dangers: Vec<((i32,i32),DangerType)>,
+    moves: Vec<((i32,i32),(i32,i32),Option<DangerType>)>,
+    wave_one: bool,
     tile_set: TileSet,
     safe_teleports: u32,
     emp_pulses: u32,
@@ -157,6 +160,9 @@ impl <'r>Game<'r> {
             tile_set: tile_set,
             player: (WIDTH as i32/2,HEIGHT as i32/2),
             dangers: Vec::new(),
+            moves: Vec::new(),
+            wave_one: false,
+            render_dangers: Vec::new(),
             safe_teleports: 0,
             emp_pulses: 0,    
             won_level: false,
@@ -172,6 +178,8 @@ impl <'r>Game<'r> {
     fn set_up_level(&mut self, level : u32) {
         self.won_level = false;
         self.dead = false;
+        self.wave_one = false;        
+        self.moves = Vec::new();
         self.dangers = Vec::new();
         self.player = (WIDTH as i32/2,HEIGHT as i32/2);
         for _ in 0..1+level*self.difficulty.level_increment {
@@ -197,6 +205,7 @@ impl <'r>Game<'r> {
         self.emp_pulses += level / self.difficulty.emps_divider;
         if self.safe_teleports > self.difficulty.max_safe_teles { self.safe_teleports = self.difficulty.max_safe_teles };
         if self.emp_pulses > self.difficulty.max_emp_pulses { self.emp_pulses = self.difficulty.max_emp_pulses };
+        self.render_dangers = self.dangers.clone();
     }
     fn draw<T:RenderTarget>(&self, canvas : &mut Canvas<T>) {
         canvas.set_draw_color(rgba(238,238,236,255));
@@ -209,7 +218,7 @@ impl <'r>Game<'r> {
                 }
             }
         }
-        for (p,t) in &self.dangers {
+        for (p,t) in &self.render_dangers {
             match t {
                 DangerType::Cylon => &self.cylon_gfx,
                 DangerType::DangerCylon => &self.danger_cylon_gfx,
@@ -217,7 +226,25 @@ impl <'r>Game<'r> {
                 DangerType::EMP => &self.emp_gfx,
             }.draw(canvas, (p.0*10, p.1*10+17));
         }
-        self.player_gfx.draw(canvas,(self.player.0*10,self.player.1*10+17));
+        if !self.wave_one  { self.player_gfx.draw(canvas,(self.player.0*10,self.player.1*10+17)) };
+        if self.ticks > 0 {
+            if self.moves.len() > 0 {
+                for (sp,ep,v) in &self.moves {
+                    let start = (sp.0 as i32 * 10, sp.1 as i32 * 10 + 17);
+                    let end = (ep.0 as i32 * 10, ep.1 as i32 * 10 + 17);
+                    let loc = (start.0 + ((end.0 - start.0)*(5 - self.ticks as i32))/5,
+                               start.1 + ((end.1 - start.1)*(5 - self.ticks as i32))/5);
+                    
+                    match v {
+                        Some(DangerType::Cylon) => &self.cylon_gfx,
+                        Some(DangerType::DangerCylon) => &self.danger_cylon_gfx,
+                        Some(DangerType::Garbage) => &self.explosion_gfx,
+                        Some(DangerType::EMP) => &self.emp_gfx,
+                        None => &self.player_gfx,
+                    }.draw(canvas, loc);
+                }
+            }
+        }
     }
     fn clamp_bounds(p:(i32,i32)) -> (i32,i32) {
         (p.0.max(0).min(WIDTH as i32 -1), p.1.max(0).min(HEIGHT as i32 - 1))
@@ -250,14 +277,23 @@ impl <'r>Game<'r> {
         if self.ticks > 0 {
             self.ticks -= 1;
             if self.ticks == 0 {
-                let pl = self.player;
-                for (p,t) in &mut self.dangers {
-                    if *t == DangerType::DangerCylon {
-                        *p = Self::move_towards(*p,pl);
+                self.moves = Vec::new();
+                self.render_dangers = self.dangers.clone();
+                if self.wave_one {
+                    let pl = self.player;
+                    for (p,t) in &mut self.dangers {
+                        if *t == DangerType::DangerCylon {
+                            let old = *p;
+                            *p = Self::move_towards(*p,pl);
+                            self.moves.push((old,*p,Some(DangerType::DangerCylon)));
+                        }
                     }
+                    self.render_dangers = self.dangers.clone().drain(..).filter(|(_,t)| *t != DangerType::DangerCylon).collect();
+                    self.check_collisions();
+                    self.dangers = self.dangers.drain(..).filter(|(_,t)| *t != DangerType::EMP).collect();
+                    self.ticks = 5;
+                    self.wave_one = false;
                 }
-                self.check_collisions();
-                self.dangers = self.dangers.drain(..).filter(|(_,t)| *t != DangerType::EMP).collect();
             }
         }
     }
@@ -289,8 +325,11 @@ impl <'r>Game<'r> {
     }
     fn make_move(&mut self, mov : Move) {
         if self.ticks > 0 { return }
+       let old = self.player;
         match mov {
-            Move::Move(d) => self.player = Self::clamp_bounds(d.move_point(self.player)),
+            Move::Move(d) => {
+                self.player = Self::clamp_bounds(d.move_point(self.player));
+            },
             Move::Stay => {},
             Move::Teleport(safe) => {
                 if safe && self.safe_teleports == 0 { return };
@@ -317,12 +356,17 @@ impl <'r>Game<'r> {
                 self.emp_pulses -= 1;
             },
         }
+        self.moves.push((old,self.player,None));
         let pl = self.player;
         for (p,t) in &mut self.dangers {
             if *t == DangerType::Cylon || *t == DangerType::DangerCylon {
+                let old = *p;
                 *p = Self::move_towards(*p,pl);
+                self.moves.push((old,*p,Some(*t)));
             }
         }
+        self.render_dangers = self.dangers.clone().drain(..).filter(|(_,t)| *t != DangerType::DangerCylon && *t != DangerType::Cylon).collect();
+        self.wave_one = true;
         self.check_collisions();
         self.ticks = 5;
     }
