@@ -29,3 +29,7 @@ taipan::
 vermin::
 	cd vermin && cargo bundle --release
 	butler push target/release/bundle/osx/Vermin\'s\ Vengeance.app liamoc/mep-vermins-vengeance:osx
+
+gatchi::
+	cd gatchi && cargo bundle --release
+	butler push target/release/bundle/osx/Gatchi.app liamoc/mep-gatchi:osx

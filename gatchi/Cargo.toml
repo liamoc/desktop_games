@@ -1,0 +1,31 @@
+[package]
+name = "gatchi"
+version = "0.1.0"
+authors = ["Liam O’Connor <liamoc@cse.unsw.edu.au>"]
+edition = "2018"
+description="A SameGame/Clickomania clone"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rand ="0.7.3"
+tesserae = "0.3.1"
+[dependencies.sdl2]
+version = "0.33.0"
+default-features = false
+features = ["use_mac_framework","gfx"]
+
+[dependencies.utils]
+path = "../utils"
+
+[package.metadata.bundle]
+name="Gatchi"
+identifier="net.liamoc.gatchi"
+icon=["icon@2x.png"]
+version="0.1"
+copyright="Liam O'Connor 2020"
+category="public.app-category.puzzle-games"
+short_description="A SameGame/Clickomania clone."
+osx_minimum_system_version="10.13.3"
+osx_frameworks=["SDL2", "SDL2_gfx"]
+
