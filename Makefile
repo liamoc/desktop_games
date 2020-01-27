@@ -33,3 +33,7 @@ vermin::
 gatchi::
 	cd gatchi && cargo bundle --release
 	butler push target/release/bundle/osx/Gatchi.app liamoc/mep-gatchi:osx
+
+vexation::
+	cd vexation && cargo bundle --release
+	butler push target/release/bundle/osx/Vexation.app liamoc/mep-vexation:osx
