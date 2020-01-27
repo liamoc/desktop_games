@@ -445,6 +445,7 @@ impl Table {
         }
     }
     fn shift_then_raw(&mut self, src: GameObject, dest: GameObject, hidden: bool, num_cards:usize, and_then: Box<dyn FnOnce(&mut Table)>) {
+        
         let cards = match src {
             //TODO this should use functions on the objects
             GameObject::Deck(i) => {
@@ -495,6 +496,7 @@ impl Table {
         }
     }
     pub fn can_undo(&self) -> bool {
+        if self.animations.len() > 0 { return false };
         if self.history.len() > 1 {
             if let Some(h) = self.history.last() {
                 h.len() == 0
