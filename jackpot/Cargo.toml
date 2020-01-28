@@ -20,7 +20,7 @@ path = "../utils"
 
 [package.metadata.bundle]
 name="Jackpot"
-identifier="net.liamoc.archaeologist"
+identifier="net.liamoc.jackpot"
 icon=["icon@2x.png"]
 version="0.1"
 copyright="Liam O'Connor 2020"
