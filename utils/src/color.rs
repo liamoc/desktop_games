@@ -24,3 +24,4 @@ pub const LIGHT_BROWN : Color = rgba(193,175,17,255);
 pub const CHARCOAL : Color = rgba(46,52,54,255);
 pub const DARK_CHARCOAL : Color = rgba(16,22,24,255);
 pub const YELLOW : Color = rgba(252,233,39,255);
+pub const DARK_YELLOW : Color = rgba(196,160,0,255);

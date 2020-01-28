@@ -37,3 +37,7 @@ gatchi::
 vexation::
 	cd vexation && cargo bundle --release
 	butler push target/release/bundle/osx/Vexation.app liamoc/mep-vexation:osx
+
+jackpot::
+	cd jackpot && cargo bundle --release
+	butler push target/release/bundle/osx/Jackpot.app liamoc/mep-jackpot:osx
