@@ -509,6 +509,7 @@ impl <'r,T: 'r> Game<'r,T> {
         self.reels[0].draw(canvas,&self.emblems);
         self.reels[1].draw(canvas,&self.emblems);
         self.reels[2].draw(canvas,&self.emblems);
+        canvas.fill_rect(Rect::new(0,HEIGHT as i32*8,WIDTH*12 + 16,50)).unwrap();
         self.chrome.draw(canvas,(0,17));
         self.credits_gfx.draw_rect(0,0,6,1,Tile {index:51, fg: WHITE, bg : CHARCOAL});
         self.credits_gfx[(0,0)] = Tile {index: 179, fg: WHITE, bg: TRANSPARENT};
@@ -840,6 +841,7 @@ const WIDTH : u32 =34;
 const HEIGHT : u32 =22;
 fn main() {
     let sdl_context = sdl2::init().unwrap();
+    sdl2::hint::set_with_priority("SDL_HINT_RENDER_SCALE_QUALITY", "0",&sdl2::hint::Hint::Override);
     let video_subsystem = sdl_context.video().unwrap();
     video_subsystem.text_input().start();
     let window = video_subsystem.window("jackpot", WIDTH*8, HEIGHT*8 + 16 + 17)
