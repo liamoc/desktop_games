@@ -6,9 +6,6 @@ edition = "2018"
 description="A Minesweeper clone"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-[features]
-static = ["sdl2/static-link"]
-framework = ["sdl2/use_mac_framework"]
 
 [dependencies]
 rand ="0.7.3"
@@ -17,7 +14,7 @@ tesserae = "0.3.1"
 [dependencies.sdl2]
 version = "0.33.0"
 default-features = false
-features = ["gfx"]
+features = ["gfx", "use_mac_framework"]
 
 [dependencies.utils]
 path = "../utils"
@@ -32,3 +29,4 @@ category="public.app-category.puzzle-games"
 short_description="A minesweeper clone."
 osx_minimum_system_version="10.13.3"
 osx_frameworks=["SDL2", "SDL2_gfx"]
+deb_depends=["libsdl2-2.0-0 (>= 2.0.9)", "libsdl2-gfx-1.0-0 (>= 1.0.4)"]
