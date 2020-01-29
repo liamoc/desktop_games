@@ -1,0 +1,37 @@
+all:: upto11 allhands archaeologist solitude soyuz corbynball cylons taipan vermin gatchi vexation jackpot
+
+upto11::
+	./build_windows.sh upto11 mep-up-to-11
+
+allhands::
+	./build_windows.sh allhands mep-all-hands
+
+archaeologist::
+	./build_windows.sh archaeologist mep-archaeologist
+
+solitude::
+	./build_windows.sh solitude mep-solitude
+
+soyuz::
+	./build_windows.sh soyuz mep-soyuz
+
+corbynball::
+	./build_windows.sh corbynball mep-corbynball
+
+cylons::
+	./build_windows.sh cylons mep-cylons
+
+taipan::
+	./build_windows.sh taipan mep-taipan
+
+vermin::
+	./build_windows.sh vermin mep-vermins-vengeance
+
+gatchi::
+	./build_windows.sh gatchi mep-gatchi
+
+vexation::
+	./build_windows.sh vexation mep-vexation
+
+jackpot::
+	./build_windows.sh jackpot mep-jackpot

@@ -1,0 +1,49 @@
+all:: upto11 allhands archaeologist solitude soyuz corbynball cylons taipan vermin gatchi vexation jackpot
+
+upto11::
+	cd upto11 && cargo build --release
+	butler push target/release/upto11 liamoc/mep-up-to-11:linux
+
+allhands::
+	cd allhands && cargo build --release
+	butler push target/release/allhands liamoc/mep-all-hands:linux
+
+archaeologist::
+	cd archaeologist && cargo build --release
+	butler push target/release/archaeologist liamoc/mep-archaeologist:linux
+
+solitude::
+	cd solitude && cargo build --release
+	butler push target/release/solitude liamoc/mep-solitude:linux
+
+soyuz::
+	cd soyuz && cargo build --release
+	butler push target/release/soyuz liamoc/mep-soyuz:linux
+
+corbynball::
+	cd corbynball && cargo build --release
+	butler push target/release/corbynball liamoc/mep-corbynball:linux
+
+cylons::
+	cd cylons && cargo build --release
+	butler push target/release/cylons liamoc/mep-cylons:linux
+
+taipan::
+	cd taipan && cargo build --release
+	butler push target/release/taipan liamoc/mep-taipan:linux
+
+vermin::
+	cd vermin && cargo build --release
+	butler push target/release/vermin liamoc/mep-vermins-vengeance:linux
+
+gatchi::
+	cd gatchi && cargo build --release
+	butler push target/release/gatchi liamoc/mep-gatchi:linux
+
+vexation::
+	cd vexation && cargo build --release
+	butler push target/release/vexation liamoc/mep-vexation:linux
+
+jackpot::
+	cd jackpot && cargo build --release
+	butler push target/release/jackpot liamoc/mep-jackpot:linux

@@ -27,3 +27,4 @@ category="public.app-category.puzzle-games"
 short_description="A solitaire suite"
 osx_minimum_system_version="10.13.3"
 osx_frameworks=["SDL2", "SDL2_gfx"]
+deb_depends=["libsdl2-2.0-0 (>= 2.0.9)", "libsdl2-gfx-1.0-0 (>= 1.0.4)"]
