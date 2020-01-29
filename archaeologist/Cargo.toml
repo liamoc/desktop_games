@@ -6,14 +6,18 @@ edition = "2018"
 description="A Minesweeper clone"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+static = ["sdl2/static-link"]
+framework = ["sdl2/use_mac_framework"]
 
 [dependencies]
 rand ="0.7.3"
 tesserae = "0.3.1"
+
 [dependencies.sdl2]
 version = "0.33.0"
 default-features = false
-features = ["use_mac_framework","gfx"]
+features = ["gfx"]
 
 [dependencies.utils]
 path = "../utils"
