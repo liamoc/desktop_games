@@ -2,6 +2,9 @@ upto11::
 	cd upto11 && cargo bundle --release
 	butler push target/release/bundle/osx/Up\ to\ 11.app liamoc/mep-up-to-11:osx
 
+allhands::
+	cd allhands && cargo bundle --release
+	butler push target/release/bundle/osx/All\ Hands.app liamoc/mep-all-hands:osx
 archaeologist::
 	cd archaeologist && cargo bundle --release
 	butler push target/release/bundle/osx/Archaeologist.app liamoc/mep-archaeologist:osx

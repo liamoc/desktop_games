@@ -5,7 +5,7 @@ authors = ["Liam O’Connor <liamoc@cse.unsw.edu.au>"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-tesserae="0.3.1"
-sdl2="0.33.0"
+tesserae = "0.3.1"
+sdl2 = "0.33.0"
+

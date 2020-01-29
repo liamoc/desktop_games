@@ -11,5 +11,6 @@ members = [
     "upto11",
     "gatchi",
     "vexation",
-    "jackpot"
+    "jackpot",
+    "allhands"
 ]
