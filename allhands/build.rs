@@ -3,7 +3,9 @@ use std::env;
 
 fn main() {
     let target = env::var("TARGET").expect("TARGET was not set");
-    if target.contains("linux") ||
+    if target.contains("windows") {
+        println!("cargo:rustc-link-search=/mingw64/lib");
+    } else if target.contains("linux") ||
        target.contains("dragonfly") ||
        target.contains("freebsd") ||
        target.contains("netbsd") ||
@@ -13,5 +15,6 @@ fn main() {
         println!("cargo:rustc-link-lib=framework=SDL2_gfx");
         println!("cargo:rustc-env=MACOSX_DEPLOYMENT_TARGET=10.13");
         println!("cargo:rustc-link-search=framework=/Library/Frameworks");
+
     }
 }
