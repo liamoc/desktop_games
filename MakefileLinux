@@ -1,49 +1,37 @@
 all:: upto11 allhands archaeologist solitude soyuz corbynball cylons taipan vermin gatchi vexation jackpot
 
 upto11::
-	cd upto11 && cargo build --release
-	butler push target/release/upto11 liamoc/mep-up-to-11:linux
+	./build_linux.sh upto11 mep-up-to-11
 
 allhands::
-	cd allhands && cargo build --release
-	butler push target/release/allhands liamoc/mep-all-hands:linux
+	./build_linux.sh allhands mep-all-hands
 
 archaeologist::
-	cd archaeologist && cargo build --release
-	butler push target/release/archaeologist liamoc/mep-archaeologist:linux
+	./build_linux.sh archaeologist mep-archaeologist
 
 solitude::
-	cd solitude && cargo build --release
-	butler push target/release/solitude liamoc/mep-solitude:linux
+	./build_linux.sh solitude mep-solitude
 
 soyuz::
-	cd soyuz && cargo build --release
-	butler push target/release/soyuz liamoc/mep-soyuz:linux
+	./build_linux.sh soyuz mep-soyuz
 
 corbynball::
-	cd corbynball && cargo build --release
-	butler push target/release/corbynball liamoc/mep-corbynball:linux
+	./build_linux.sh corbynball mep-corbynball
 
 cylons::
-	cd cylons && cargo build --release
-	butler push target/release/cylons liamoc/mep-cylons:linux
+	./build_linux.sh cylons mep-cylons
 
 taipan::
-	cd taipan && cargo build --release
-	butler push target/release/taipan liamoc/mep-taipan:linux
+	./build_linux.sh taipan mep-taipan
 
 vermin::
-	cd vermin && cargo build --release
-	butler push target/release/vermin liamoc/mep-vermins-vengeance:linux
+	./build_linux.sh vermin mep-vermins-vengeance
 
 gatchi::
-	cd gatchi && cargo build --release
-	butler push target/release/gatchi liamoc/mep-gatchi:linux
+	./build_linux.sh gatchi mep-gatchi
 
 vexation::
-	cd vexation && cargo build --release
-	butler push target/release/vexation liamoc/mep-vexation:linux
+	./build_linux.sh vexation mep-vexation
 
 jackpot::
-	cd jackpot && cargo build --release
-	butler push target/release/jackpot liamoc/mep-jackpot:linux
+	./build_linux.sh jackpot mep-jackpot
