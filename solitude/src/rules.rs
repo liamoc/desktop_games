@@ -2,10 +2,88 @@ use super::{Table,Card,Suit,Rules, Stack, Well, GameObject};
 use rand::thread_rng;
 use rand::seq::SliceRandom;
 use std::cmp::Ordering;
+
+
 fn refresh_stacks(table: &mut Table) {
     for i in 0..table.stacks().len() {
         if table.stack(i).hidden_point >= table.stack(i).cards.len() {
             table.reveal(i, (table.stack(i).hidden_point + 1 - table.stack(i).cards.len()) as i32);
+        }
+    }
+}
+
+pub struct Golf {}
+impl Rules for Golf {
+    
+    fn table_size() -> (u32,u32) { (288,248) }
+    fn new_game(table: &mut Table) {
+        let cards = Card::deck();
+        let (tableau_cards,rest) = cards.split_at(35);
+        table.add_deck((128-16,160), rest);
+        let empty_vec = Vec::new();
+        table.add_well((128+16,160), 0,&empty_vec);
+        let mut start = 0;
+        for i in 1..=7 {
+            
+            table.add_stack((32 * i as i32,32), &tableau_cards[start..start+5] , 0);
+            start += 5;
+        }
+    }
+    fn can_split_stack(stack: &Stack, s: usize) -> bool { s == stack.cards.len() - 1 }
+    fn can_place_stack(_: &Stack, _: &[Card]) -> bool { false }
+    fn can_place_well(w: &Well, cs: &[Card]) -> bool {
+        if let [t] = cs {
+            if let Some(c) = w.cards.last() { 
+                return t.value as i32 - c.value as i32 == 1 || c.value as i32 - t.value as i32 == 1 || c.value == 13 && t.value == 1 || c.value == 1 && t.value == 13
+            } else {
+                return true
+            }
+        } else {
+            return false
+        }
+    }
+    fn can_skim_well(_: &Well) -> bool { false }
+    fn deal_from_deck(table: &mut Table, _: usize) {
+        if table.deck(0).cards.len() > 0 {
+            table.shift(GameObject::Deck(0), GameObject::Well(0), 1)
+        }
+    }
+    fn placed_in_stack(_: &mut Table, _: usize, _: usize) {  }
+    fn placed_in_well(_: &mut Table, _: usize, _: usize) { }
+    fn well_clicked(_: &mut Table, _: usize) {  }
+    fn game_won(table: &Table) -> bool {
+        for i in 0..7 {
+            if !table.stack(i).cards.is_empty() {
+                return false
+            }
+        }        
+        return table.well(0).cards.len() + table.deck(0).cards.len() == 52
+    }
+    fn stack_clicked(table: &mut Table, stack_id: usize, position: usize) {
+        let cards = &table.stack(stack_id).cards[position..];
+        if let [c] = cards {
+            if Self::can_place_well(table.well(0), &[*c]) {
+                table.shift_then(GameObject::Stack(stack_id), GameObject::Well(0), 1, Box::new(move |tbl| {
+                    tbl.end_move();
+                }))
+            }
+        }        
+    }
+    fn hint(tbl: &mut Table) {
+        let mut available_stacks : Vec<(usize, usize)> = Vec::new();
+        for i in 0..7 {
+            let len = tbl.stack(i).cards.len();
+            if len > 0 {
+                if Self::can_place_well(tbl.well(0), &tbl.stack(i).cards[len-1..]) {
+                    available_stacks.push((i,len))
+                }
+            }
+        }
+        available_stacks.sort_by(|(_,b), (_,d) | d.cmp(b) );
+        if let Some ((s,_)) = available_stacks.first() {
+            tbl.animate_highlight_stack(*s, tbl.stack(*s).cards.len()-1, (200,54,200))
+        } else {
+            tbl.animate_highlight_deck(0, (200,54,10))
         }
     }
 }
@@ -382,6 +460,7 @@ impl <V:KlondikeVariant> Rules for Klondike<V> {
         }
     }
     fn game_won(table: &Table) -> bool {
+         
         table.stacks().iter().all(|s| s.cards.len() == 0) && table.deck(0).cards.len() == 0 && table.well(0).cards.len() == 0
     }
 }

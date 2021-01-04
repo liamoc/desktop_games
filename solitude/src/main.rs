@@ -8,7 +8,7 @@ use utils::menu::{*};
 
 mod rules;
 use std::env;
-use rules::{Klondike,ThreeDraw,OneDraw,Spider,OneSuit,TwoSuit,FourSuit};
+use rules::{Klondike,ThreeDraw,OneDraw,Golf,Spider,OneSuit,TwoSuit,FourSuit};
 use std::ops::{Index};
 use tesserae::{Graphic,Tile,TileSet};
 use sdl2::pixels::Color;
@@ -781,6 +781,8 @@ fn main_loop<RULES:Rules>(mut window:Window, sdl_context: &Sdl) -> (Option<Varia
                             .add(MenuItem::new("Spider 2-Suit", 355, Keycode::F4,&texture_creator,&graphics_set.tile_set))
                             .add(MenuItem::new("Spider 4-Suit", 356, Keycode::F5,&texture_creator,&graphics_set.tile_set))
                             .add(MenuItem::separator(136, &texture_creator,&graphics_set.tile_set))
+                            .add(MenuItem::new("Golf", 357, Keycode::F6,&texture_creator,&graphics_set.tile_set))
+                            .add(MenuItem::separator(136, &texture_creator,&graphics_set.tile_set))
                             .add(MenuItem::new("Quit",363, Keycode::F12,&texture_creator,&graphics_set.tile_set)))
                     .add(Menu::new("ACTION",88,&texture_creator,&graphics_set.tile_set)
                             .add(MenuItem::new("Hint",9, Keycode::H,&texture_creator,&graphics_set.tile_set))
@@ -808,7 +810,7 @@ fn main_loop<RULES:Rules>(mut window:Window, sdl_context: &Sdl) -> (Option<Varia
         move_count_gfx_shadow.draw(&mut canvas, (9,wwh as i32-10-8));
         move_count_gfx_shadow.draw(&mut canvas, (11,wwh as i32-10-8));
         move_count_gfx.draw(&mut canvas, (10,wwh as i32-10-8));
-        let won = RULES::game_won(&table);
+        let won = attached_cards == None && RULES::game_won(&table);
         if won {
             let x = (RULES::table_size().0 as i32) / 2 - (21 * 4);
             let y = (RULES::table_size().1 as i32) / 2 - (21 * 4);
@@ -848,6 +850,9 @@ fn main_loop<RULES:Rules>(mut window:Window, sdl_context: &Sdl) -> (Option<Varia
                         },
                         Event::KeyDown { keycode: Some(Keycode::F5), ..} => {
                             return (Some(Variant::SpiderFour), canvas.into_window());
+                        },
+                        Event::KeyDown { keycode: Some(Keycode::F6), ..} => {
+                            return (Some(Variant::Golf), canvas.into_window());
                         },
                         Event::KeyDown { keycode: Some(Keycode::F9), ..} => {
                             if micro_mode {
@@ -981,7 +986,8 @@ enum Variant {
     KlondikeOne,
     SpiderFour,
     SpiderTwo,
-    SpiderOne
+    SpiderOne,
+    Golf
 }
 fn choose(window : Window, sdl_context:&Sdl, variant : Variant) {
     if let (Some(v), w) = match variant {
@@ -990,6 +996,7 @@ fn choose(window : Window, sdl_context:&Sdl, variant : Variant) {
         Variant::SpiderOne=> main_loop::<Spider<OneSuit>>(window,sdl_context),
         Variant::SpiderTwo=> main_loop::<Spider<TwoSuit>>(window,sdl_context),
         Variant::SpiderFour=> main_loop::<Spider<FourSuit>>(window,sdl_context),
+        Variant::Golf => main_loop::<Golf>(window,sdl_context)
     } {
         choose(w, sdl_context,v);
     }
@@ -1007,6 +1014,7 @@ fn main() {
     match &arg[..] {
         "klondike3" => choose(window,&sdl_context,Variant::KlondikeThree),
         "klondike1" => choose(window,&sdl_context,Variant::KlondikeOne),
+        "golf"      => choose(window,&sdl_context,Variant::Golf),
         "spider1"   => choose(window,&sdl_context,Variant::SpiderOne),
         "spider2"   => choose(window,&sdl_context,Variant::SpiderTwo),
         "spider4"   => choose(window,&sdl_context,Variant::SpiderFour),
