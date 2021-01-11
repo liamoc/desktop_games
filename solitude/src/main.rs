@@ -8,7 +8,7 @@ use utils::menu::{*};
 
 mod rules;
 use std::env;
-use rules::{Klondike,ThreeDraw,OneDraw,Golf,Spider,OneSuit,TwoSuit,FourSuit};
+use rules::{Klondike,ThreeDraw,OneDraw,Golf,Spider,OneSuit,TwoSuit,FourSuit,FreeCell,TriPeaks};
 use std::ops::{Index};
 use tesserae::{Graphic,Tile,TileSet};
 use sdl2::pixels::Color;
@@ -277,6 +277,7 @@ pub struct Stack {
     pub position: (i32, i32),
     pub cards: Vec<Card>,
     pub hidden_point: usize,
+    pub frame_visible: bool,
 }
 impl Stack {
     fn split_at(&mut self, index: usize) -> Vec<Card> {
@@ -290,11 +291,11 @@ impl Stack {
         let y = self.position.1 + hidden.min(length) * 6 + (length - hidden).max(0) * 10;
         (self.position.0,y)
     } 
-    fn draw_cards<'r>(cards: &Vec<Card>, hidden_point: usize, position: (i32,i32), canvas: &mut Canvas<Window>, graphics: &GraphicsSet<Texture<'r>>) {
-        Self::draw_cards_anim(cards, hidden_point, position, canvas, graphics, 0)
+    fn draw_cards<'r>(cards: &Vec<Card>, hidden_point: usize, frame_visible: bool,  position: (i32,i32), canvas: &mut Canvas<Window>, graphics: &GraphicsSet<Texture<'r>>) {
+        Self::draw_cards_anim(cards, hidden_point, frame_visible, position, canvas, graphics, 0)
     }
-    fn draw_cards_anim<'r>(cards: &Vec<Card>, hidden_point: usize, position: (i32,i32), canvas: &mut Canvas<Window>, graphics: &GraphicsSet<Texture<'r>>, reduction: i32) {
-        if cards.len() == 0 {
+    fn draw_cards_anim<'r>(cards: &Vec<Card>, hidden_point: usize, frame_visible: bool, position: (i32,i32), canvas: &mut Canvas<Window>, graphics: &GraphicsSet<Texture<'r>>, reduction: i32) {
+        if cards.len() == 0 && frame_visible {
             Card::draw_well(canvas, graphics, position);
         } else {
             let x = position.0;
@@ -316,7 +317,7 @@ impl Stack {
         }
     }
     fn draw<'r>(&self, canvas: &mut Canvas<Window>, graphics: &GraphicsSet<Texture<'r>>) {
-        Self::draw_cards(&self.cards, self.hidden_point, self.position, canvas, graphics)
+        Self::draw_cards(&self.cards, self.hidden_point, self.frame_visible, self.position, canvas, graphics)
     }
     
 }
@@ -352,7 +353,7 @@ impl Animation {
             AnimationType::MoveStack{ cards, start: (sx,sy), end: (ex,ey) } => {
                 let x = sx + ((ex - sx) * frame as i32 / self.time as i32); 
                 let y = sy + ((ey - sy) * frame as i32 / self.time as i32); 
-                Stack::draw_cards(&cards, 0, (x,y), canvas, graphics);
+                Stack::draw_cards(&cards, 0, false, (x,y), canvas, graphics);
             },
             AnimationType::MoveHidden{ start: (sx,sy), end: (ex,ey) } => {
                 let x = sx + ((ex - sx) * frame as i32 / self.time as i32); 
@@ -361,7 +362,7 @@ impl Animation {
             },
             AnimationType::CollapseStack{ cards, position } => {
                 let reduction = 10 * cards.len() as i32 * frame as i32 / self.time as i32;
-                Stack::draw_cards_anim(cards, 0, *position, canvas, graphics, reduction);
+                Stack::draw_cards_anim(cards, 0, false, *position, canvas, graphics, reduction);
             },
             AnimationType::Highlight{ position, color: (r,g,b), height } => {
                 let alpha = frame * 255 * 2 / self.time;
@@ -407,7 +408,12 @@ impl Table {
     }
     pub fn add_stack(&mut self, position: (i32, i32), cards: &[Card], hidden_point: usize ) -> usize {
         let id = self.stacks.len();
-        self.stacks.push(Stack { id: id, position: position, cards: cards.to_vec(), hidden_point: hidden_point });
+        self.stacks.push(Stack { id: id, position: position, cards: cards.to_vec(), hidden_point: hidden_point, frame_visible: true });
+        id
+    }
+    pub fn add_stack_nobase(&mut self, position: (i32, i32), cards: &[Card], hidden_point: usize ) -> usize {
+        let id = self.stacks.len();
+        self.stacks.push(Stack { id: id, position: position, cards: cards.to_vec(), hidden_point: hidden_point, frame_visible: false });
         id
     }
     pub fn stacks(&self) -> &[Stack] {
@@ -654,24 +660,26 @@ impl Table {
     }
 
     fn collides_stack(&self, position:(i32,i32)) -> Option<(usize,usize,(i32,i32))> {
-        for i in &self.stacks {
-            if position.0 >= i.position.0 && position.0 < i.position.0 + 26 {
-                let offset_x = i.position.0 - position.0;            
-                if position.1 >= i.position.1 {
-                    let mut remaining = position.1 - i.position.1;
-                    let mut offset_y = i.position.1 - position.1;
-                    for j in 0..i.cards.len() {
-                        let delta = if j < i.hidden_point { 6 } else { 10 };
-                        remaining -= delta;                        
-                        if remaining < 0 {
-                            return Some((i.id,j,(offset_x,offset_y)))
+        for i in self.stacks.iter().rev() {
+            if i.cards.len() != 0 || i.frame_visible {
+                if position.0 >= i.position.0 && position.0 < i.position.0 + 26 {
+                    let offset_x = i.position.0 - position.0;            
+                    if position.1 >= i.position.1 {
+                        let mut remaining = position.1 - i.position.1;
+                        let mut offset_y = i.position.1 - position.1;
+                        for j in 0..i.cards.len() {
+                            let delta = if j < i.hidden_point { 6 } else { 10 };
+                            remaining -= delta;                        
+                            if remaining < 0 {
+                                return Some((i.id,j,(offset_x,offset_y)))
+                            }
+                            if j != i.cards.len()-1 { offset_y += delta; }
                         }
-                        if j != i.cards.len()-1 { offset_y += delta; }
-                    }
-                    if remaining < 36 && i.cards.len() > 0 {
-                        return Some((i.id,i.cards.len()-1,(offset_x, offset_y)))
-                    } else if remaining < 36 {
-                        return Some((i.id,0,(offset_x, offset_y)))
+                        if remaining < 36 && i.cards.len() > 0 {
+                            return Some((i.id,i.cards.len()-1,(offset_x, offset_y)))
+                        } else if remaining < 36 {
+                            return Some((i.id,0,(offset_x, offset_y)))
+                        }
                     }
                 }
             }
@@ -707,7 +715,7 @@ pub trait Rules {
     fn table_size() -> (u32,u32);
     fn new_game(table: &mut Table);
 
-    fn can_split_stack(stack : &Stack, position : usize) -> bool;
+    fn can_split_stack(stack : &Stack, position : usize, table: &Table) -> bool;
     fn can_place_stack(stack : &Stack, cards: &[Card]) -> bool;
     fn can_place_well(well : &Well, cards: &[Card]) -> bool;
     fn can_skim_well(well : &Well) -> bool;
@@ -782,6 +790,9 @@ fn main_loop<RULES:Rules>(mut window:Window, sdl_context: &Sdl) -> (Option<Varia
                             .add(MenuItem::new("Spider 4-Suit", 356, Keycode::F5,&texture_creator,&graphics_set.tile_set))
                             .add(MenuItem::separator(136, &texture_creator,&graphics_set.tile_set))
                             .add(MenuItem::new("Golf", 357, Keycode::F6,&texture_creator,&graphics_set.tile_set))
+                            .add(MenuItem::new("TriPeaks", 358, Keycode::F7,&texture_creator,&graphics_set.tile_set))
+                            .add(MenuItem::separator(136, &texture_creator,&graphics_set.tile_set))
+                            .add(MenuItem::new("FreeCell", 359, Keycode::F8,&texture_creator,&graphics_set.tile_set))
                             .add(MenuItem::separator(136, &texture_creator,&graphics_set.tile_set))
                             .add(MenuItem::new("Quit",363, Keycode::F12,&texture_creator,&graphics_set.tile_set)))
                     .add(Menu::new("ACTION",88,&texture_creator,&graphics_set.tile_set)
@@ -797,7 +808,7 @@ fn main_loop<RULES:Rules>(mut window:Window, sdl_context: &Sdl) -> (Option<Varia
     loop {
         table.draw(&mut canvas, &graphics_set);
         if let Some((cards,_)) = &attached_cards {
-            Stack::draw_cards(&cards, 0, (mx + grab_offset.0,my + grab_offset.1), &mut canvas, &graphics_set);
+            Stack::draw_cards(&cards, 0, false, (mx + grab_offset.0,my + grab_offset.1), &mut canvas, &graphics_set);
         }
         move_count_gfx.draw_rect(0, 0, 4, 1, Tile {fg: TRANSPARENT, bg: TRANSPARENT, index:0});
         move_count_gfx.draw_text(&table.move_count.to_string(), &graphics_set.tile_set , 0, 0, WHITE, TRANSPARENT);
@@ -854,6 +865,12 @@ fn main_loop<RULES:Rules>(mut window:Window, sdl_context: &Sdl) -> (Option<Varia
                         Event::KeyDown { keycode: Some(Keycode::F6), ..} => {
                             return (Some(Variant::Golf), canvas.into_window());
                         },
+                        Event::KeyDown { keycode: Some(Keycode::F7), ..} => {
+                            return (Some(Variant::TriPeaks), canvas.into_window());
+                        },
+                        Event::KeyDown { keycode: Some(Keycode::F8), ..} => {
+                            return (Some(Variant::FreeCell), canvas.into_window());
+                        },
                         Event::KeyDown { keycode: Some(Keycode::F9), ..} => {
                             if micro_mode {
                                 micro_mode = false;
@@ -889,7 +906,7 @@ fn main_loop<RULES:Rules>(mut window:Window, sdl_context: &Sdl) -> (Option<Varia
                             md = true;
                             mx = sx; my = sy;
                             if let Some((idx, pos, offset)) = table.collides_stack((mx,my)) {
-                                if RULES::can_split_stack(&table.stacks[idx], pos) {
+                                if RULES::can_split_stack(&table.stacks[idx], pos, &table) {
                                     attached_cards = Some((table.stacks[idx].split_at(pos), GameObject::Stack(idx)));
                                     grab_offset = offset;
                                 }
@@ -987,7 +1004,9 @@ enum Variant {
     SpiderFour,
     SpiderTwo,
     SpiderOne,
-    Golf
+    Golf,
+    TriPeaks,
+    FreeCell
 }
 fn choose(window : Window, sdl_context:&Sdl, variant : Variant) {
     if let (Some(v), w) = match variant {
@@ -996,7 +1015,9 @@ fn choose(window : Window, sdl_context:&Sdl, variant : Variant) {
         Variant::SpiderOne=> main_loop::<Spider<OneSuit>>(window,sdl_context),
         Variant::SpiderTwo=> main_loop::<Spider<TwoSuit>>(window,sdl_context),
         Variant::SpiderFour=> main_loop::<Spider<FourSuit>>(window,sdl_context),
-        Variant::Golf => main_loop::<Golf>(window,sdl_context)
+        Variant::Golf => main_loop::<Golf>(window,sdl_context),
+        Variant::TriPeaks => main_loop::<TriPeaks>(window,sdl_context),
+        Variant::FreeCell => main_loop::<FreeCell>(window,sdl_context)
     } {
         choose(w, sdl_context,v);
     }
@@ -1015,9 +1036,11 @@ fn main() {
         "klondike3" => choose(window,&sdl_context,Variant::KlondikeThree),
         "klondike1" => choose(window,&sdl_context,Variant::KlondikeOne),
         "golf"      => choose(window,&sdl_context,Variant::Golf),
+        "tripeaks"  => choose(window,&sdl_context,Variant::TriPeaks),
         "spider1"   => choose(window,&sdl_context,Variant::SpiderOne),
         "spider2"   => choose(window,&sdl_context,Variant::SpiderTwo),
         "spider4"   => choose(window,&sdl_context,Variant::SpiderFour),
+        "freecell"  => choose(window,&sdl_context,Variant::FreeCell),
         _ => println!("Available games: klondike1, klondike3, spider1, spider2, spider4")
     }
     //cards::main_loop::<Spider<OneSuit>>();
