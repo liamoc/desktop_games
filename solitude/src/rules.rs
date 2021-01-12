@@ -11,6 +11,132 @@ fn refresh_stacks(table: &mut Table) {
         }
     }
 }
+
+pub struct Cruel {}
+impl Cruel {
+    fn end_redeal(table:&mut Table) {        
+        let mut cards_count = table.deck(0).cards.len();
+        for i in (0..12).into_iter().rev() {
+            if cards_count > i * 4 { 
+                let num = 4.min(cards_count - i * 4);
+                table.shift(GameObject::Deck(0), GameObject::Well(i), num);
+                cards_count -= num;
+            }
+        }
+        table.end_move();        
+    }
+    fn begin_redeal(table: &mut Table) {
+        let mut moves = Vec::new();
+        for i in 0..12 {
+            if table.well(i).cards.len() > 0 { moves.push((GameObject::Well(i),table.well(i).cards.len())) };
+        }
+        table.multi_shift_then(moves, GameObject::Deck(0), Box::new(|tbl| Self::end_redeal(tbl)))        
+    }
+    fn best_location_for(table: &mut Table, w : usize) -> Option<usize> {
+        let c = table.well(w).cards.last()?;        
+        for i in table.wells.iter().rev() {
+            if i.id != w && Self::can_place_well(i, &vec![*c][..]) {
+                return Some(i.id)
+            }
+        }
+        None
+    }
+}
+impl Rules for Cruel {
+    fn table_size() -> (u32,u32) { (256,256) }
+    fn new_game(table: &mut Table) { 
+        let mut cards = Card::deck();
+        cards.shuffle(&mut thread_rng());
+        let remaining_cards = cards.into_iter().filter(|x| x.value != 1);
+        let empty_vec = Vec::new();
+        //table.add_well((34,32), 0,&empty_vec);
+        table.add_well((32,128), 0,&empty_vec);
+        table.add_well((64,128), 0,&empty_vec);
+        table.add_well((96,128), 0,&empty_vec);
+        table.add_well((128,128), 0,&empty_vec);
+        table.add_well((160,128), 0,&empty_vec);
+        table.add_well((192,128), 0,&empty_vec);
+        table.add_well((32,172), 0,&empty_vec);
+        table.add_well((64,172), 0,&empty_vec);
+        table.add_well((96,172), 0,&empty_vec);
+        table.add_well((128,172), 0,&empty_vec);
+        table.add_well((160,172), 0,&empty_vec);
+        table.add_well((192,172), 0,&empty_vec);
+        table.add_well((64,32), 0,&vec![Card {value: 1, suit: Suit::Hearts}][..]);
+        table.add_well((96,32), 0,&vec![Card {value: 1, suit: Suit::Spades}][..]);
+        table.add_well((128,32), 0,&vec![Card {value: 1, suit: Suit::Diamonds}][..]);
+        table.add_well((160,32), 0,&vec![Card {value: 1, suit: Suit::Clubs}][..]);
+        table.add_deck_with_emblem((112,84), &empty_vec);
+        let mut idx = 0;
+        for c in remaining_cards {
+            table.add_cards_to(GameObject::Well(idx), &vec![c][..]);
+            idx = (idx + 1) % 12;
+        }
+    }
+    // no stacks in cruel
+    fn can_split_stack(_: &Stack, _: usize, _: &Table) -> bool { false }
+    fn can_place_stack(_: &Stack, _: &[Card]) -> bool { false }
+    fn stack_clicked(_: &mut Table, _: usize, _: usize) { }
+    fn placed_in_stack(_: &mut Table, _: usize, _: usize) { }
+
+    fn can_place_well(w: &Well, cs: &[Card]) -> bool {
+        if let [c] = cs {
+            if let Some(t) = w.cards.last() {
+                c.suit == t.suit && if w.id >= 12 {
+                    c.value == t.value + 1
+                } else {
+                    t.value == c.value + 1
+                }
+            } else { false }
+        } else { false }
+    }
+    fn can_skim_well(w: &Well) -> bool { w.cards.len() > 1 || w.id < 12 && w.cards.len() > 0 }
+    fn game_won(tbl: &Table) -> bool { 
+        tbl.well(12).cards.len() + tbl.well(13).cards.len() + tbl.well(14).cards.len() + tbl.well(15).cards.len() == 52
+     }
+    fn well_clicked(table: &mut Table, w: usize) { 
+        if w < 12 && table.well(w).cards.len() > 0 {
+            if let Some(l) = Self::best_location_for(table,w) {
+                table.shift_then(GameObject::Well(w), GameObject::Well(l), 1, Box::new(|tbl| tbl.end_move()));
+            }
+        }
+    }
+    fn placed_in_well(_: &mut Table, _: usize, _: usize) { }
+
+    fn deal_from_deck(tbl: &mut Table, _id: usize) {
+        if tbl.deck(0).cards.len() > 0 {
+            Self::end_redeal(tbl);
+        } else {
+            Self::begin_redeal(tbl);
+        }
+    }
+    fn hint(table: &mut Table) {
+        let mut good_moves = Vec::new();
+        let mut okay_moves = Vec::new();
+        for i in 0..12 {
+            if let Some(j) = Self::best_location_for(table,i) {
+                if j >= 12 {
+                    good_moves.push((i,j))
+                } else {
+                    okay_moves.push((i,j))
+                }
+            }
+        }
+        // moves to top wells we want from lowest first
+        good_moves.sort_by(|(i,_), (j,_)| table.well(*i).cards.last().map(|x| x.value).cmp(&table.well(*j).cards.last().map(|x| x.value)));
+        // moves between bottom wells we want from highest first
+        okay_moves.sort_by(|(j,_), (i,_)| table.well(*i).cards.last().map(|x| x.value).cmp(&table.well(*j).cards.last().map(|x| x.value)));
+        if good_moves.is_empty() {
+            good_moves = okay_moves;
+        }
+        if let Some((i,j)) = good_moves.first() {
+            let jj = *j;
+            table.animate_highlight_well_then(*i, (100,0,200), Box::new(move |tbl| tbl.animate_highlight_well(jj,(0,200,100))))
+        } else {
+            table.animate_highlight_deck(0, (200,54,10))
+        }
+    }
+}
 pub struct FreeCell {}
 impl FreeCell {
     fn is_golden(cards:&[Card]) -> bool {
@@ -88,7 +214,7 @@ impl FreeCell {
 impl Rules for FreeCell {
     fn table_size() -> (u32,u32) { (338,320) }
     fn new_game(table: &mut Table) {
-        let mut cards = Card::deck();        
+        let mut cards = Card::deck();
         cards.shuffle(&mut thread_rng());
         
         let empty_vec = Vec::new();
@@ -279,7 +405,7 @@ impl TriPeaks {
 }
 impl Rules for TriPeaks {
 
-    fn table_size() -> (u32,u32) { (384,248) }
+    fn table_size() -> (u32,u32) { (384,256) }
     fn new_game(table: &mut Table) {
         let cards = Card::deck();
         let (tableau_cards,rest) = cards.split_at(28);
@@ -370,7 +496,7 @@ impl Rules for TriPeaks {
 pub struct Golf {}
 impl Rules for Golf {
     
-    fn table_size() -> (u32,u32) { (288,248) }
+    fn table_size() -> (u32,u32) { (288,256) }
     fn new_game(table: &mut Table) {
         let cards = Card::deck();
         let (tableau_cards,rest) = cards.split_at(35);
@@ -508,7 +634,7 @@ impl <V:SpiderVariant>Rules for Spider<V> {
         table.add_well((224,32), 0,&empty_vec);
         table.add_well((256,32), 0,&empty_vec);
         table.add_well((288,32), 0,&empty_vec);
-        table.add_well((320,32), 0,&empty_vec);
+        table.add_well((320,32), 0,&empty_vec);        
         let mut stacks_cards : [Vec<Card>;10] 
             = [Vec::new(),Vec::new(),Vec::new(),Vec::new(),Vec::new(),Vec::new(),Vec::new(),Vec::new(),Vec::new(),Vec::new()];
         let mut idx = 0;
@@ -730,7 +856,7 @@ impl <V:KlondikeVariant> Rules for Klondike<V> {
             table.shift(GameObject::Deck(0), GameObject::Well(0), V::size_of_draw())
         } else {
             if table.well(0).cards.len() > 0 {
-                table.shift(GameObject::Well(0), GameObject::Deck(0), table.well(0).cards.len());
+                table.shift(GameObject::Well(0), GameObject::Deck(0), table.well(0).cards.len());                
             }
         }
     }

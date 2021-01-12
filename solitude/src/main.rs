@@ -8,7 +8,7 @@ use utils::menu::{*};
 
 mod rules;
 use std::env;
-use rules::{Klondike,ThreeDraw,OneDraw,Golf,Spider,OneSuit,TwoSuit,FourSuit,FreeCell,TriPeaks};
+use rules::{Klondike,ThreeDraw,OneDraw,Golf,Spider,OneSuit,TwoSuit,FourSuit,FreeCell,TriPeaks,Cruel};
 use std::ops::{Index};
 use tesserae::{Graphic,Tile,TileSet};
 use sdl2::pixels::Color;
@@ -30,6 +30,8 @@ struct GraphicsSet<T> {
     back_card: Graphic<T>,
     cards: Vec<Graphic<T>>,
     well: Graphic<T>,
+    emblem: Graphic<T>,
+    emblem_shadow: Graphic<T>,
     black_border: Graphic<T>,
     win: Graphic<T>,
     tile_set: TileSet,
@@ -117,6 +119,12 @@ impl <'r> GraphicsSet<Texture<'r>> {
         let mut table = Graphic::solid(640/8, 480/8, Tile {fg: Self::BG_LIGHT, bg:Self::BG_DARK, index:255}).textured(texture_creator);
         let mut back_card = Self::blank_card(Tile {fg: Self::BACK_LIGHT, bg:Self::BACK_DARK, index:192}, Self::BACK_LIGHT).textured(texture_creator);
         let mut cell = Self::blank_card(Tile{fg:Self::TRANSLUCENT, bg:Self::TRANSLUCENT, index:1}, WHITE).textured(texture_creator);
+        let mut emblem_shadow = Graphic::solid(2,1,Tile {bg: TRANSPARENT, fg: BLACK, index:316}).textured(texture_creator);
+        let mut emblem  = Graphic::solid(2,1,Tile {bg: TRANSPARENT, fg: WHITE, index:316}).textured(texture_creator);
+        emblem[(1,0)].index += 1;
+        emblem_shadow[(1,0)].index += 1;
+        emblem.update_texture(&tile_set);
+        emblem_shadow.update_texture(&tile_set);
         table.update_texture(&tile_set);
         back_card.update_texture(&tile_set);
         cell.update_texture(&tile_set);
@@ -147,6 +155,7 @@ impl <'r> GraphicsSet<Texture<'r>> {
         black_border.update_texture(&tile_set);
         let mut win = Graphic::load_from(Cursor::new(&include_bytes!("../win")[..])).unwrap().textured(&texture_creator);
         win.update_texture(&tile_set);
+
         GraphicsSet {
             table: table,
             back_card: back_card,
@@ -155,6 +164,8 @@ impl <'r> GraphicsSet<Texture<'r>> {
             black_border: black_border,
             win: win,
             tile_set: tile_set,
+            emblem: emblem,
+            emblem_shadow: emblem_shadow,
         }
     }
 
@@ -258,7 +269,7 @@ impl Well {
             let trail = self.current_trail.min(self.cards.len() - 1);
             (self.position.0  + (trail + num).min(self.trail) as i32 * 14, self.position.1)
         } else {
-            (self.position.0 + (num-1).min(self.trail) as i32 * 14, self.position.1)
+            (self.position.0 + (num-1.min(num)).min(self.trail) as i32 * 14, self.position.1)
         }
     }
     fn skim(&mut self) -> Vec<Card> {
@@ -326,6 +337,7 @@ pub struct Deck {
     pub id: usize,
     pub position: (i32, i32),
     pub cards: Vec<Card>,
+    pub emblem: bool,
 }
 impl Deck {
     fn draw<'r>(&self, canvas: &mut Canvas<Window>, graphics: &GraphicsSet<Texture<'r>>) {
@@ -333,6 +345,17 @@ impl Deck {
             Card::draw_back(canvas, graphics, self.position);
         } else {
             Card::draw_well(canvas, graphics, self.position);
+            if self.emblem {
+                graphics.emblem_shadow.draw(canvas, (self.position.0 + 6 -1, self.position.1 + 14 -1));
+                graphics.emblem_shadow.draw(canvas, (self.position.0 + 6 +1, self.position.1 + 14 -1 ));
+                graphics.emblem_shadow.draw(canvas, (self.position.0 + 6 -1, self.position.1 + 14 +1 ));
+                graphics.emblem_shadow.draw(canvas, (self.position.0 + 6 +1, self.position.1 + 14 +1 ));
+                graphics.emblem_shadow.draw(canvas, (self.position.0 + 6, self.position.1 + 14 +1 ));
+                graphics.emblem_shadow.draw(canvas, (self.position.0 + 6, self.position.1 + 14 -1 ));
+                graphics.emblem_shadow.draw(canvas, (self.position.0 + 6 +1, self.position.1 + 14));
+                graphics.emblem_shadow.draw(canvas, (self.position.0 + 6 -1, self.position.1 + 14 ));
+                graphics.emblem.draw(canvas, (self.position.0 + 6, self.position.1 + 14));
+            }
         }
     }
 }
@@ -398,7 +421,12 @@ impl Table {
 
     pub fn add_deck(&mut self, position: (i32,i32), cards: &[Card]) -> usize {
         let id = self.decks.len();
-        self.decks.push(Deck { id: id, position: position, cards: cards.to_vec() });
+        self.decks.push(Deck { id: id, position: position, cards: cards.to_vec(), emblem: false });
+        id
+    }
+    pub fn add_deck_with_emblem(&mut self, position: (i32,i32), cards: &[Card]) -> usize {
+        let id = self.decks.len();
+        self.decks.push(Deck { id: id, position: position, cards: cards.to_vec(), emblem: true });
         id
     }
     pub fn add_well(&mut self, position: (i32, i32), trail: usize, cards: &[Card]) -> usize {
@@ -489,6 +517,22 @@ impl Table {
                 h.push(Move::Shift(src,dest,num_cards))
             }
         }
+    }
+    fn multi_shift_helper(&mut self, srcs: Vec<(GameObject, usize)>,i: usize,  dest: GameObject, and_then: Box<dyn FnOnce(&mut Table)>) {
+        if i < srcs.len() {
+            let (src,num_cards) = srcs[i];
+            self.shift_then_raw(src, dest, src.is_deck() || dest.is_deck(), num_cards, Box::new(move |tbl| tbl.multi_shift_helper(srcs,i+1,dest, and_then)));
+        } else {
+            and_then(self);
+        }
+    }
+    pub fn multi_shift_then(&mut self, srcs: Vec<(GameObject, usize)>, dest: GameObject, and_then: Box<dyn FnOnce(&mut Table)>) {
+        for (src,num_cards) in &srcs {
+            if let Some(h) = self.history.last_mut() {
+                h.push(Move::Shift(*src,dest,*num_cards))
+            }
+        }
+        self.multi_shift_helper(srcs,0,dest,and_then)
     }
     pub fn shift(&mut self, src: GameObject, dest: GameObject, num_cards:usize) {
             self.shift_then(src,dest,num_cards,Box::new(|_| {}));
@@ -782,17 +826,18 @@ fn main_loop<RULES:Rules>(mut window:Window, sdl_context: &Sdl) -> (Option<Varia
     let wwh = RULES::table_size().1;
     let mut menu = MenuBar::new(RULES::table_size().0)
                     .add(Menu::new("GAME",152,&texture_creator,&graphics_set.tile_set)
-                            .add(MenuItem::new("Klondike 1-Draw", 352, Keycode::F1,&texture_creator,&graphics_set.tile_set))
-                            .add(MenuItem::new("Klondike 3-Draw", 353, Keycode::F2,&texture_creator,&graphics_set.tile_set))
+                            .add(MenuItem::new("Klondike 1-Draw", 52, Keycode::Num1,&texture_creator,&graphics_set.tile_set))
+                            .add(MenuItem::new("Klondike 3-Draw", 53, Keycode::Num2,&texture_creator,&graphics_set.tile_set))
                             .add(MenuItem::separator(136, &texture_creator,&graphics_set.tile_set))
-                            .add(MenuItem::new("Spider 1-Suit", 354, Keycode::F3,&texture_creator,&graphics_set.tile_set))
-                            .add(MenuItem::new("Spider 2-Suit", 355, Keycode::F4,&texture_creator,&graphics_set.tile_set))
-                            .add(MenuItem::new("Spider 4-Suit", 356, Keycode::F5,&texture_creator,&graphics_set.tile_set))
+                            .add(MenuItem::new("Spider 1-Suit", 54, Keycode::Num3,&texture_creator,&graphics_set.tile_set))
+                            .add(MenuItem::new("Spider 2-Suit", 55, Keycode::Num4,&texture_creator,&graphics_set.tile_set))
+                            .add(MenuItem::new("Spider 4-Suit", 56, Keycode::Num5,&texture_creator,&graphics_set.tile_set))
                             .add(MenuItem::separator(136, &texture_creator,&graphics_set.tile_set))
-                            .add(MenuItem::new("Golf", 357, Keycode::F6,&texture_creator,&graphics_set.tile_set))
-                            .add(MenuItem::new("TriPeaks", 358, Keycode::F7,&texture_creator,&graphics_set.tile_set))
+                            .add(MenuItem::new("Golf", 57, Keycode::Num6,&texture_creator,&graphics_set.tile_set))
+                            .add(MenuItem::new("TriPeaks", 58, Keycode::Num7,&texture_creator,&graphics_set.tile_set))
                             .add(MenuItem::separator(136, &texture_creator,&graphics_set.tile_set))
-                            .add(MenuItem::new("FreeCell", 359, Keycode::F8,&texture_creator,&graphics_set.tile_set))
+                            .add(MenuItem::new("FreeCell", 59, Keycode::Num8,&texture_creator,&graphics_set.tile_set))
+                            .add(MenuItem::new("Cruel", 60, Keycode::Num9,&texture_creator,&graphics_set.tile_set))
                             .add(MenuItem::separator(136, &texture_creator,&graphics_set.tile_set))
                             .add(MenuItem::new("Quit",363, Keycode::F12,&texture_creator,&graphics_set.tile_set)))
                     .add(Menu::new("ACTION",88,&texture_creator,&graphics_set.tile_set)
@@ -847,29 +892,32 @@ fn main_loop<RULES:Rules>(mut window:Window, sdl_context: &Sdl) -> (Option<Varia
                         Event::KeyDown { keycode: Some(Keycode::F12), .. } => {
                             return (None, canvas.into_window())
                         },
-                        Event::KeyDown { keycode: Some(Keycode::F1), ..} => {
+                        Event::KeyDown { keycode: Some(Keycode::Num1), ..} => {
                             return (Some(Variant::KlondikeOne), canvas.into_window());
                         },
-                        Event::KeyDown { keycode: Some(Keycode::F2), ..} => {
+                        Event::KeyDown { keycode: Some(Keycode::Num2), ..} => {
                             return (Some(Variant::KlondikeThree), canvas.into_window());
                         },
-                        Event::KeyDown { keycode: Some(Keycode::F3), ..} => {
+                        Event::KeyDown { keycode: Some(Keycode::Num3), ..} => {
                             return (Some(Variant::SpiderOne), canvas.into_window());
                         },
-                        Event::KeyDown { keycode: Some(Keycode::F4), ..} => {
+                        Event::KeyDown { keycode: Some(Keycode::Num4), ..} => {
                             return (Some(Variant::SpiderTwo), canvas.into_window());
                         },
-                        Event::KeyDown { keycode: Some(Keycode::F5), ..} => {
+                        Event::KeyDown { keycode: Some(Keycode::Num5), ..} => {
                             return (Some(Variant::SpiderFour), canvas.into_window());
                         },
-                        Event::KeyDown { keycode: Some(Keycode::F6), ..} => {
+                        Event::KeyDown { keycode: Some(Keycode::Num6), ..} => {
                             return (Some(Variant::Golf), canvas.into_window());
                         },
-                        Event::KeyDown { keycode: Some(Keycode::F7), ..} => {
+                        Event::KeyDown { keycode: Some(Keycode::Num7), ..} => {
                             return (Some(Variant::TriPeaks), canvas.into_window());
                         },
-                        Event::KeyDown { keycode: Some(Keycode::F8), ..} => {
+                        Event::KeyDown { keycode: Some(Keycode::Num8), ..} => {
                             return (Some(Variant::FreeCell), canvas.into_window());
+                        },
+                        Event::KeyDown { keycode: Some(Keycode::Num9), ..} => {
+                            return (Some(Variant::Cruel), canvas.into_window());
                         },
                         Event::KeyDown { keycode: Some(Keycode::F9), ..} => {
                             if micro_mode {
@@ -1005,19 +1053,21 @@ enum Variant {
     SpiderTwo,
     SpiderOne,
     Golf,
+    Cruel,
     TriPeaks,
     FreeCell
 }
 fn choose(window : Window, sdl_context:&Sdl, variant : Variant) {
     if let (Some(v), w) = match variant {
-        Variant::KlondikeOne => main_loop::<Klondike<OneDraw>>(window,sdl_context),
-        Variant::KlondikeThree=> main_loop::<Klondike<ThreeDraw>>(window,sdl_context),
-        Variant::SpiderOne=> main_loop::<Spider<OneSuit>>(window,sdl_context),
-        Variant::SpiderTwo=> main_loop::<Spider<TwoSuit>>(window,sdl_context),
-        Variant::SpiderFour=> main_loop::<Spider<FourSuit>>(window,sdl_context),
-        Variant::Golf => main_loop::<Golf>(window,sdl_context),
-        Variant::TriPeaks => main_loop::<TriPeaks>(window,sdl_context),
-        Variant::FreeCell => main_loop::<FreeCell>(window,sdl_context)
+        Variant::KlondikeOne   => main_loop::<Klondike<OneDraw>>(window,sdl_context),
+        Variant::KlondikeThree => main_loop::<Klondike<ThreeDraw>>(window,sdl_context),
+        Variant::SpiderOne     => main_loop::<Spider<OneSuit>>(window,sdl_context),
+        Variant::SpiderTwo     => main_loop::<Spider<TwoSuit>>(window,sdl_context),
+        Variant::SpiderFour    => main_loop::<Spider<FourSuit>>(window,sdl_context),
+        Variant::Golf          => main_loop::<Golf>(window,sdl_context),
+        Variant::Cruel         => main_loop::<Cruel>(window,sdl_context),
+        Variant::TriPeaks      => main_loop::<TriPeaks>(window,sdl_context),
+        Variant::FreeCell      => main_loop::<FreeCell>(window,sdl_context)
     } {
         choose(w, sdl_context,v);
     }
@@ -1041,7 +1091,8 @@ fn main() {
         "spider2"   => choose(window,&sdl_context,Variant::SpiderTwo),
         "spider4"   => choose(window,&sdl_context,Variant::SpiderFour),
         "freecell"  => choose(window,&sdl_context,Variant::FreeCell),
-        _ => println!("Available games: klondike1, klondike3, spider1, spider2, spider4")
+        "cruel"     => choose(window,&sdl_context,Variant::Cruel),
+        _ => println!("Available games: klondike1, klondike3, spider1, spider2, spider4, cruel, golf, tripeaks, freecell")
     }
     //cards::main_loop::<Spider<OneSuit>>();
     
