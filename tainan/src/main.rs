@@ -20,7 +20,6 @@ use rand::{thread_rng};
 use rand::seq::SliceRandom;
 use utils::color::{*};
 
-
 struct GraphicsSet<T> {
     tile_set: TileSet,
     tiles: [Graphic<T>;42],
@@ -138,16 +137,29 @@ pub struct MTile {
 impl MTile {
     pub fn deck() -> Vec<MTile> {
         let mut ret = Vec::new();
-        for i in 0..34 {
-            ret.push(MTile{value:i});
-            ret.push(MTile{value:i});
-            ret.push(MTile{value:i});
-            ret.push(MTile{value:i});
+        let mut suits : Vec<u8> = Vec::new();
+        for i in 0..36 {
+            suits.push(i);
         }
-        for i in 34..42 {
-            ret.push(MTile{value:i});
+        suits.shuffle(&mut thread_rng());
+        for i in suits {
+            if i == 34 {
+                ret.push(MTile{value:34});
+                ret.push(MTile{value:35});
+                ret.push(MTile{value:36});
+                ret.push(MTile{value:37});
+            } else if i == 35 {
+                ret.push(MTile{value:38});
+                ret.push(MTile{value:39});
+                ret.push(MTile{value:40});
+                ret.push(MTile{value:41});
+            } else {
+                ret.push(MTile{value:i});
+                ret.push(MTile{value:i});
+                ret.push(MTile{value:i});
+                ret.push(MTile{value:i});
+            }
         }
-        ret.shuffle(&mut thread_rng());
         ret
     }
     pub fn matches(t : MTile, u : MTile) -> bool {
@@ -187,11 +199,14 @@ impl MTile {
 pub struct Table {    
     tiles: [[[Option<MTile>;32];32];8],
     frees: [[[bool;32];32];8],
+    layout: [[[bool;32];32];8],
     selected: Option<(usize,usize,usize)>,
     mouseover: Option<(usize,usize,usize)>,
     hint_cells: Vec<(usize,usize,usize)>,
+    history: Vec<((usize,usize,usize),(usize,usize,usize),MTile,MTile)>,
     display_frees: bool,
     game_won: bool,
+    move_count: usize,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -199,37 +214,35 @@ pub enum Layout {
     Turtle, Cube, Bridge, Castle, Pyramid
 }
 impl Table {
-    fn clear_table(&mut self) {
+    fn clear_layout(&mut self) {
         for z in 0..8 {
             for x in 0..32 {
                 for y in 0..32 {
+                    self.layout[z][y][x] = false;
                     self.tiles[z][y][x] = None;
                 }
             }
         }
     }
     fn cube_layout(&mut self) {
-        self.clear_table();
-        let mut tiles = MTile::deck();
+        self.clear_layout();
         for x in 0..6 {
             for y in 0..6 {
                 for z in 0..4 {
-                    self.tiles[z][4+y*2][10+x*2] = tiles.pop();
+                    self.layout[z][4+y*2][10+x*2] = true;
                 }
             }
         }
 
     }
     fn pyramid_layout(&mut self) {
-        self.clear_table();
-        let mut tiles = MTile::deck();
         let midpoint = 8;
         for z in 0..4 {
             let mut descending = false;   
             let mut current_height = 1;     
             for x in 0..(7-z)*2-1 {
                 for y in 0..current_height {
-                    self.tiles[z][midpoint-current_height+(y*2)+3][(z+x)*2+3] = tiles.pop();
+                    self.layout[z][midpoint-current_height+(y*2)+3][(z+x)*2+3] = true;
                 }
                 if descending {
                     current_height -= 1;
@@ -243,68 +256,66 @@ impl Table {
                 }
             }
         }
-        self.tiles[4][9][14] = tiles.pop();
-        self.tiles[4][9][16] = tiles.pop();
-        self.tiles[4][11][14] = tiles.pop();
-        self.tiles[4][11][16] = tiles.pop();
-        self.tiles[4][7][15] = tiles.pop();
-        self.tiles[4][13][15] = tiles.pop();
+        self.layout[4][9][14] = true;
+        self.layout[4][9][16] =  true;
+        self.layout[4][11][14] = true;
+        self.layout[4][11][16] = true;
+        self.layout[4][7][15] = true;
+        self.layout[4][13][15] = true;
         for z in 0..3 {
-            self.tiles[z][4][2] = tiles.pop();
-            self.tiles[z][16][2] = tiles.pop();
-            self.tiles[z][4][28] = tiles.pop();
-            self.tiles[z][16][28] = tiles.pop();
+            self.layout[z][4][2] = true;
+            self.layout[z][16][2] = true;
+            self.layout[z][4][28] = true;
+            self.layout[z][16][28] = true;
         }
     }
     fn bridge_layout(&mut self) {
-        self.clear_table();
-        let mut tiles = MTile::deck();
+        self.clear_layout();
         for (x,y) in vec![ (2,8),(4,8),(6,8),(20,8),(22,8),(24,8)] {
-            self.tiles[0][y-1][x+2] = tiles.pop();
-            self.tiles[0][y+1][x+2] = tiles.pop();
-            self.tiles[0][y+3][x+2] = tiles.pop();
-            self.tiles[0][y+5][x+2] = tiles.pop();
+            self.layout[0][y-1][x+2] = true;
+            self.layout[0][y+1][x+2] = true;
+            self.layout[0][y+3][x+2] = true;
+            self.layout[0][y+5][x+2] = true;
         }
         for (x,y) in vec![ (4,8),(6,8),(8,8),(18,8),(20,8),(22,8)] {
-            self.tiles[1][y-1][x+2] = tiles.pop();
-            self.tiles[1][y+1][x+2] = tiles.pop();
-            self.tiles[1][y+3][x+2] = tiles.pop();
-            self.tiles[1][y+5][x+2] = tiles.pop();
+            self.layout[1][y-1][x+2] = true;
+            self.layout[1][y+1][x+2] = true;
+            self.layout[1][y+3][x+2] = true;
+            self.layout[1][y+5][x+2] = true;
         }
         for (x,y) in vec![ (6,8),(8,8),(10,8),(16,8),(18,8),(20,8)] {
-            self.tiles[2][y-1][x+2] = tiles.pop();
-            self.tiles[2][y+1][x+2] = tiles.pop();
-            self.tiles[2][y+3][x+2] = tiles.pop();
-            self.tiles[2][y+5][x+2] = tiles.pop();
+            self.layout[2][y-1][x+2] = true;
+            self.layout[2][y+1][x+2] = true;
+            self.layout[2][y+3][x+2] = true;
+            self.layout[2][y+5][x+2] = true;
         }
         for (x,y) in vec![ (8,8),(10,8),(12,8),(14,8),(16,8),(18,8)] {
-            self.tiles[3][y-1][x+2] = tiles.pop();
-            self.tiles[3][y+1][x+2] = tiles.pop();
-            self.tiles[3][y+3][x+2] = tiles.pop();
-            self.tiles[3][y+5][x+2] = tiles.pop();
+            self.layout[3][y-1][x+2] = true;
+            self.layout[3][y+1][x+2] = true;
+            self.layout[3][y+3][x+2] = true;
+            self.layout[3][y+5][x+2] = true;
         }
         for z in 1..6 {
-            self.tiles[z][3+4][4] = tiles.pop();
-            self.tiles[z][3+4][26] = tiles.pop();
-            self.tiles[z][9+4][4] = tiles.pop();
-            self.tiles[z][9+4][26] = tiles.pop();
+            self.layout[z][3+4][4] = true;
+            self.layout[z][3+4][26] = true;
+            self.layout[z][9+4][4] = true;
+            self.layout[z][9+4][26] = true;
         }
-        self.tiles[5][5+4][4] = tiles.pop();
-        self.tiles[5][7+4][4] = tiles.pop();
-        self.tiles[5][5+4][26] = tiles.pop();
-        self.tiles[5][7+4][26] = tiles.pop();
+        self.layout[5][5+4][4] = true;
+        self.layout[5][7+4][4] = true;
+        self.layout[5][5+4][26] = true;
+        self.layout[5][7+4][26] = true;
         for (z,x) in vec![(2,4),(3,6),(4,8),(4,10),(4,12),(4,14),(4,16),(4,18),(3,20),(2,22)] {
-            self.tiles[z][7][x+2] = tiles.pop();
-            self.tiles[z][13][x+2] = tiles.pop();
+            self.layout[z][7][x+2] = true;
+            self.layout[z][13][x+2] = true;
         }
-        self.tiles[5][7][15] = tiles.pop();
-        self.tiles[6][7][15] = tiles.pop();
-        self.tiles[5][13][15] = tiles.pop();
-        self.tiles[6][13][15] = tiles.pop();
+        self.layout[5][7][15] = true;
+        self.layout[6][7][15] = true;
+        self.layout[5][13][15] = true;
+        self.layout[6][13][15] = true;
     }
     fn castle_layout(&mut self) {
-        self.clear_table();
-        let mut tiles = MTile::deck();
+        self.clear_layout();
         for (x,y) in vec![
             (2,4),(4,4),(6,4),(8,4),(10,4),(12,4),(14,4),(16,4),(18,4),
             (2,6),(18,6),
@@ -318,29 +329,28 @@ impl Table {
             (8,10),(12,10),
         ] {
             let offset = if x == 10 && (y == 4 || y == 16) { 2 } else { 0 };
-            self.tiles[0+offset][y-1][x+6] = tiles.pop();
-            self.tiles[1+offset][y-1][x+6] = tiles.pop();
-            self.tiles[2+offset][y-1][x+6] = tiles.pop();
+            self.layout[0+offset][y-1][x+6] = true;
+            self.layout[1+offset][y-1][x+6] = true;
+            self.layout[2+offset][y-1][x+6] = true
         }
         for (x,y) in vec![
             (2,4),(6,4),(14,4),(18,4),
             (2,16),(6,16),(14,16),(18,16),
             (2,8),(2,12),(18,8),(18,12),
         ] {
-            self.tiles[3][y-1][x+6] = tiles.pop();
-            self.tiles[4][y-1][x+6] = tiles.pop();
+            self.layout[3][y-1][x+6] = true;
+            self.layout[4][y-1][x+6] = true;
         }
         for (x,y) in vec![
             (10,8),(10,12),(8,10),(12,10),
             (7,7),(13,7),(13,13),(7,13)
         ] {
-            self.tiles[3][y-1][x+6] = tiles.pop();
-            if x % 2 != 0 { self.tiles[4][y-1][x+6] = tiles.pop() }
+            self.layout[3][y-1][x+6] = true;
+            if x % 2 != 0 { self.layout[4][y-1][x+6] = true }
         }
     }
     fn turtle_layout(&mut self) {
-        self.clear_table();
-        let mut tiles = MTile::deck();
+        self.clear_layout();
         for (x,y) in vec![
             (2,4),(4,4),(6,4),(8,4),(10,4),(12,4),(14,4),(16,4),(18,4),(20,4),(22,4),(24,4),
             (6,6),(8,6),(10,6),(12,6),(14,6),(16,6),(18,6),(20,6),
@@ -352,24 +362,24 @@ impl Table {
             (6,16),(8,16),(10,16),(12,16),(14,16),(16,16),(18,16),(20,16),
             (2,18),(4,18),(6,18),(8,18),(10,18),(12,18),(14,18),(16,18),(18,18),(20,18),(22,18),(24,18)
         ] {
-            self.tiles[0][y-1][x+2] = tiles.pop();
+            self.layout[0][y-1][x+2] = true;
         }
         for y in 0..6 {
             for x in 0..6 {
-                self.tiles[1][5+y*2][10+x*2] = tiles.pop();
+                self.layout[1][5+y*2][10+x*2] = true;
             }
         }
         for y in 0..4 {
             for x in 0..4 {
-                self.tiles[2][7+y*2][12+x*2] = tiles.pop();
+                self.layout[2][7+y*2][12+x*2] = true;
             }
         }
         for y in 0..2 {
             for x in 0..2 {
-                self.tiles[3][9+y*2][14+x*2] = tiles.pop();
+                self.layout[3][9+y*2][14+x*2] = true;
             }
         }
-        self.tiles[4][10][15] = tiles.pop();
+        self.layout[4][10][15] = true;
     } 
     fn is_free_right(&self,z:usize,y:usize,x:usize) -> bool {
         if x < 30 {
@@ -407,6 +417,50 @@ impl Table {
             }
         }
         return None
+    }
+    fn populate_board(&mut self) {        
+        for z in 0..8 {
+            for y in 0..32 {
+                for x in 0..32 {
+                    if self.layout[z][y][x] {
+                        self.tiles[z][y][x] = Some(MTile {value: 255});
+                    } else {
+                        self.tiles[z][y][x] = None;
+                    }
+                }
+            }
+        }
+        let mut moves = Vec::new();
+        loop {
+            self.recalculate_frees();
+            let mut locations = Vec::new();
+            for z in 0..8 {
+                for y in 0..32 {
+                    for x in 0..32 {
+                        if self.tiles[z][y][x].is_some() && self.frees[z][y][x] {
+                            locations.push((z,y,x));
+                        }
+                    }
+                }
+            }
+            if locations.len() < 2 { break } 
+            locations.shuffle(&mut thread_rng());
+            let (z1,y1,x1) = locations.pop().unwrap();
+            let (z2,y2,x2) = locations.pop().unwrap();
+            self.tiles[z1][y1][x1] = None;
+            self.tiles[z2][y2][x2] = None;
+            moves.push(((z1,y1,x1),(z2,y2,x2)));
+        }
+        if self.game_won {
+            self.game_won = false; 
+            let mut deck = MTile::deck();
+            for ((z1,y1,x1),(z2,y2,x2)) in moves {
+                self.tiles[z1][y1][x1] = deck.pop();
+                self.tiles[z2][y2][x2] = deck.pop();
+            }
+        } else {
+            self.populate_board();
+        }
     }
     fn hint(&mut self) {
         for z in (0..8).rev() {
@@ -452,6 +506,8 @@ impl Table {
                     if self.tiles[z][y][x].is_some() {
                         self.game_won = false;
                         self.frees[z][y][x] = self.is_free(z,y,x);
+                    } else {
+                        self.frees[z][y][x] = false;
                     }
                 }
             }
@@ -462,11 +518,14 @@ impl Table {
         let mut table = Table {
             tiles: [[[None;32];32];8],
             frees: [[[false;32];32];8],
+            layout: [[[false;32];32];8],
             selected: None,
             mouseover: None,
             hint_cells: Vec::new(),
             game_won: false,
             display_frees: true,
+            history: Vec::new(),
+            move_count:0,
         };
         match layout {
             Layout::Cube => table.cube_layout(),
@@ -475,8 +534,17 @@ impl Table {
             Layout::Castle => table.castle_layout(),
             Layout::Pyramid => table.pyramid_layout(),
         };
+        table.populate_board();
         table.recalculate_frees();
         table
+    }
+    fn undo(&mut self) {
+        self.deselect();
+        if let Some(((z,y,x),(zz,yy,xx),t,u)) = self.history.pop() {
+            self.tiles[z][y][x] = Some(t);
+            self.tiles[zz][yy][xx] = Some(u);
+            self.recalculate_frees();
+        }
     }
     fn clicked(&mut self, position:Option<(usize,usize,usize)>) {
         if let Some((z,y,x)) = position {        
@@ -489,6 +557,8 @@ impl Table {
                                 if MTile::matches(t,u) {
                                     self.tiles[z][y][x] = None;
                                     self.tiles[zz][yy][xx] = None;
+                                    self.move_count+= 1;
+                                    self.history.push(((z,y,x),(zz,yy,xx),t,u));
                                     self.recalculate_frees();                                    
                                 } else {
                                     self.selected = position;
@@ -568,6 +638,8 @@ fn main_loop(mut window:Window, sdl_context: &Sdl) {
     let mut layout = Layout::Turtle;
     let mut table = Table::new(layout);
 
+    let mut move_count_gfx = Graphic::blank(4,1).textured(&texture_creator);
+    let mut move_count_gfx_shadow = Graphic::blank(4,1).textured(&texture_creator);
     let mut menu = MenuBar::new(WIDTH)
                     .add(Menu::new("GAME",152,&texture_creator,&graphics_set.tile_set)
                             .add(MenuItem::new("Turtle", 352, Keycode::F1,&texture_creator,&graphics_set.tile_set))
@@ -579,6 +651,7 @@ fn main_loop(mut window:Window, sdl_context: &Sdl) {
                             .add(MenuItem::new("Quit",363, Keycode::F12,&texture_creator,&graphics_set.tile_set)))
                     .add(Menu::new("ACTION",88,&texture_creator,&graphics_set.tile_set)
                             .add(MenuItem::new("Hint",9, Keycode::H,&texture_creator,&graphics_set.tile_set))
+                            .add(MenuItem::new("Undo",27, Keycode::Z,&texture_creator,&graphics_set.tile_set))
                             .add(MenuItem::separator(72, &texture_creator, &graphics_set.tile_set))
                             .add(MenuItem::new("Restart",15, Keycode::N,&texture_creator,&graphics_set.tile_set)))
                     .add(Menu::new("VIEW",96+32,&texture_creator,&graphics_set.tile_set)
@@ -592,6 +665,17 @@ fn main_loop(mut window:Window, sdl_context: &Sdl) {
         canvas.set_draw_color(CHARCOAL);
         canvas.clear();
         table.draw(&mut canvas, &graphics_set);
+        move_count_gfx.draw_rect(0, 0, 4, 1, Tile {fg: TRANSPARENT, bg: TRANSPARENT, index:0});
+        move_count_gfx.draw_text(&table.move_count.to_string(), &graphics_set.tile_set , 0, 0, WHITE, TRANSPARENT);
+        move_count_gfx_shadow.draw_rect(0, 0, 4, 1, Tile {fg: TRANSPARENT, bg: TRANSPARENT, index:0});
+        move_count_gfx_shadow.draw_text(&table.move_count.to_string(), &graphics_set.tile_set , 0, 0, BLACK, TRANSPARENT);
+        move_count_gfx.update_texture(&graphics_set.tile_set);
+        move_count_gfx_shadow.update_texture(&graphics_set.tile_set);
+        move_count_gfx_shadow.draw(&mut canvas, (10,240-9-8));
+        move_count_gfx_shadow.draw(&mut canvas, (10,240-11-8));
+        move_count_gfx_shadow.draw(&mut canvas, (9,240-10-8));
+        move_count_gfx_shadow.draw(&mut canvas, (11,240-10-8));
+        move_count_gfx.draw(&mut canvas, (10,240-10-8));
         let won = table.game_won;
         if won {
             let x = WIDTH as i32 / 2 - (21 * 4);
@@ -646,6 +730,9 @@ fn main_loop(mut window:Window, sdl_context: &Sdl) {
                     },
                     Event::KeyDown { keycode: Some(Keycode::H), ..} => {
                         table.hint();
+                    },
+                    Event::KeyDown { keycode: Some(Keycode::Z), ..} => {
+                        table.undo();
                     },
                     Event::KeyDown { keycode: Some(Keycode::F9), ..} => {
                         if micro_mode {
