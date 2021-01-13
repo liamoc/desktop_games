@@ -9,6 +9,10 @@ archaeologist::
 	cd archaeologist && cargo bundle --release
 	butler push target/release/bundle/osx/Archaeologist.app liamoc/mep-archaeologist:osx
 
+tainan::
+	cd tainan && cargo bundle --release
+	butler push target/release/bundle/osx/Tainan.app liamoc/mep-tainan:osx
+
 solitude::
 	cd solitude && cargo bundle --release
 	butler push target/release/bundle/osx/Solitude.app liamoc/mep-solitude:osx

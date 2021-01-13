@@ -43,7 +43,7 @@ impl Cruel {
     }
 }
 impl Rules for Cruel {
-    fn table_size() -> (u32,u32) { (256,256) }
+    fn table_size() -> (u32,u32) { (256,256+32) }
     fn new_game(table: &mut Table) { 
         let mut cards = Card::deck();
         cards.shuffle(&mut thread_rng());
@@ -405,7 +405,7 @@ impl TriPeaks {
 }
 impl Rules for TriPeaks {
 
-    fn table_size() -> (u32,u32) { (384,256) }
+    fn table_size() -> (u32,u32) { (384,256+32) }
     fn new_game(table: &mut Table) {
         let cards = Card::deck();
         let (tableau_cards,rest) = cards.split_at(28);
@@ -496,7 +496,7 @@ impl Rules for TriPeaks {
 pub struct Golf {}
 impl Rules for Golf {
     
-    fn table_size() -> (u32,u32) { (288,256) }
+    fn table_size() -> (u32,u32) { (288,256+32) }
     fn new_game(table: &mut Table) {
         let cards = Card::deck();
         let (tableau_cards,rest) = cards.split_at(35);
@@ -533,11 +533,6 @@ impl Rules for Golf {
     fn placed_in_well(_: &mut Table, _: usize, _: usize) { }
     fn well_clicked(_: &mut Table, _: usize) {  }
     fn game_won(table: &Table) -> bool {
-        for s in table.stacks() {
-            if s.cards.is_empty() {
-                return false
-            }
-        }        
         return table.well(0).cards.len() + table.deck(0).cards.len() == 52
     }
     fn stack_clicked(table: &mut Table, stack_id: usize, position: usize) {
@@ -756,18 +751,156 @@ impl <V:SpiderVariant>Rules for Spider<V> {
     }
     fn can_skim_well(_well: &Well) -> bool { false }
 }
-pub trait KlondikeVariant {
+pub trait DrawSize {
     fn size_of_draw() -> usize;
-}
-pub struct Klondike<V: KlondikeVariant> {
-    _dummy: V
 }
 
 pub struct OneDraw {}
 pub struct ThreeDraw {}
-impl KlondikeVariant for OneDraw { fn size_of_draw () -> usize { 1 } }
-impl KlondikeVariant for ThreeDraw { fn size_of_draw () -> usize { 3 } }
-impl <V:KlondikeVariant>Klondike<V> {
+impl DrawSize for OneDraw { fn size_of_draw () -> usize { 1 } }
+impl DrawSize for ThreeDraw { fn size_of_draw () -> usize { 3 } }
+pub struct Pyramid<V: DrawSize> {
+    _dummy: V
+}
+impl <V:DrawSize> Pyramid<V> {
+    fn value_of(table : &Table, obj: GameObject) -> u8 {
+        match obj {
+            GameObject::Deck(i) => table.deck(i).cards.last().map(|x| x.value).unwrap_or(127),
+            GameObject::Stack(i) => table.stack(i).cards.last().map(|x| x.value).unwrap_or(127),
+            GameObject::Well(i) => table.well(i).cards.last().map(|x| x.value).unwrap_or(127)
+        }
+    }
+    fn handle_select(table: &mut Table, obj: GameObject) {        
+        if let Some(n) = table.selection {
+            let x = Self::value_of(table,obj) + Self::value_of(table, n);
+            if x == 13 {
+                table.shift(n,   GameObject::Well(1), 1);
+                table.shift(obj, GameObject::Well(1), 1);
+                table.deselect();
+                table.end_move();
+                return
+            }
+        }
+        if Self::value_of(table,obj) == 13 {
+            table.shift(obj, GameObject::Well(1),1);
+            table.end_move();
+        } else { table.select(obj) };
+    }
+    fn unobstructed(table : &Table, s: usize) -> bool {
+        let (x,y) = match s {
+            0 => (1,2),
+
+            1 => (3,4),
+            2 => (4,5),
+
+            3 => (6,7),
+            4 => (7,8),
+            5 => (8,9),
+
+            6 => (10,11),
+            7 => (11,12),
+            8 => (12,13),
+            9 => (13,14),
+
+            10 => (15,16),
+            11 => (16,17),
+            12 => (17,18),
+            13 => (18,19),
+            14 => (19,20),
+
+            15 => (21,22),
+            16 => (22,23),
+            17 => (23,24),
+            18 => (24,25),
+            19 => (25,26),
+            20 => (26,27),
+            _  => (255,255)
+        };
+        (x == 255 || table.stack(x).cards.len() == 0) && (y == 255 || table.stack(y).cards.len() == 0)
+    }
+}
+impl <V:DrawSize> Rules for Pyramid<V> {
+    fn table_size() -> (u32,u32) { (384,256+32) }
+    fn new_game(table: &mut Table) {
+        let cards = Card::deck();
+        let (tableau_cards,rest) = cards.split_at(28);
+        let offset = if V::size_of_draw() == 3 { 24 } else {0};
+        table.add_deck((384-64-32-offset,32), rest);
+        let empty_vec = Vec::new();
+        let mut start = 0;
+        let locations = vec![ 
+            (96,32), 
+            (80,64), (112,64), 
+            (64,96), (96,96), (128,96), 
+            (48,128), (80,128), (112,128), (144,128),
+            (32,160), (64,160), (96,160), (128,160), (160,160),
+            (16,192), (48,192), (80,192), (112, 192), (144,192), (176,192),
+            (0,228), (32,228), (64,228), (96,228), (128,228), (160, 228), (192,228),
+        ];
+        for (x,y) in locations {
+            table.add_stack_nobase((x+32,y),&tableau_cards[start..start+1],0);
+            start += 1;
+        }        
+        table.add_well((384-32-32-offset,32), V::size_of_draw()-1,&empty_vec);
+        table.add_well((384-32-32,228), 0,&empty_vec);
+    }
+    fn can_split_stack(stack: &Stack, pos: usize, tbl: &Table) -> bool { stack.cards.len() > pos && Self::unobstructed(tbl, stack.id) }
+    fn can_place_stack(_: &Stack, _: &[Card]) -> bool { false }
+    fn can_place_well(_: &Well, _: &[Card]) -> bool { false }
+    fn can_skim_well(w: &Well) -> bool { w.cards.len() > 0 && w.id == 0 }
+    fn game_won(table: &Table) -> bool { table.well(1).cards.len() + table.well(0).cards.len() + table.deck(0).cards.len() == 52 }
+    fn placed_in_stack(_: &mut Table, _: usize, _: usize) { }
+    fn placed_in_well(_: &mut Table, _: usize, _: usize) { }
+    fn deal_from_deck(table: &mut Table, _deck_id: usize) {
+        if table.deck(0).cards.len() > 0 {
+            table.shift(GameObject::Deck(0), GameObject::Well(0), V::size_of_draw())
+        } else {
+            if table.well(0).cards.len() > 0 {
+                table.shift(GameObject::Well(0), GameObject::Deck(0), table.well(0).cards.len());                
+            }
+        }
+    }
+    fn stack_clicked(table: &mut Table, id: usize, _pos: usize) {
+        Self::handle_select(table, GameObject::Stack(id));
+    }
+    fn well_clicked(table: &mut Table, id: usize) {
+        Self::handle_select(table, GameObject::Well(id));
+    }
+    fn hint(table: &mut Table) { 
+        if Self::value_of(table,GameObject::Well(0)) == 13 {
+            table.animate_highlight_well(0, (0,200,100));
+            return
+        }
+        for i in 0..28 {
+            if Self::unobstructed(table, i) {
+                if Self::value_of(table, GameObject::Stack(i)) == 13 {
+                    table.animate_highlight_stack(i,0,(0,200,100));
+                    return
+                }
+                for j in i..28 {
+                    if i != j && Self::unobstructed(table, j) {
+                        if Self::value_of(table,GameObject::Stack(i)) + Self::value_of(table, GameObject::Stack(j)) == 13 {
+                            table.animate_highlight_stack(i, 0, (0,200,100));
+                            table.animate_highlight_stack(j, 0, (0,200,100));
+                            return
+                        }
+
+                    }
+                }
+                if Self::value_of(table, GameObject::Stack(i)) + Self::value_of(table,GameObject::Well(0)) == 13 {
+                    table.animate_highlight_stack(i, 0, (0,200,100));
+                    table.animate_highlight_well(0, (0,200,100));
+                    return
+                }
+            }
+        }
+        table.animate_highlight_deck(0, (200,0,100));
+     }
+}
+pub struct Klondike<V: DrawSize> {
+    _dummy: V
+}
+impl <V:DrawSize>Klondike<V> {
     fn best_location_for_stack(table:&Table, cards: &[Card], other_than: GameObject) -> Option<GameObject> {
         let mut options : Vec<usize> = Vec::new();
         for i in 0..7 {
@@ -799,7 +932,7 @@ impl <V:KlondikeVariant>Klondike<V> {
     }
 }
 
-impl <V:KlondikeVariant> Rules for Klondike<V> {
+impl <V:DrawSize> Rules for Klondike<V> {
     fn table_size() -> (u32,u32) { (288,320) }
     fn new_game(table: &mut Table) {
         let cards = Card::deck();
@@ -822,7 +955,7 @@ impl <V:KlondikeVariant> Rules for Klondike<V> {
         position < stack.cards.len() && position >= stack.hidden_point        
     }
     fn can_skim_well(well: &Well) -> bool {
-        well.cards.len() > 0        
+        well.cards.len() > 0
     }
     fn can_place_stack(stack: &Stack, cards: &[Card]) -> bool {        
         if let Some(c) = stack.cards.last () {

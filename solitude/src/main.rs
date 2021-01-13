@@ -8,7 +8,7 @@ use utils::menu::{*};
 
 mod rules;
 use std::env;
-use rules::{Klondike,ThreeDraw,OneDraw,Golf,Spider,OneSuit,TwoSuit,FourSuit,FreeCell,TriPeaks,Cruel};
+use rules::{Klondike,ThreeDraw,OneDraw,Golf,Spider,OneSuit,TwoSuit,FourSuit,FreeCell,TriPeaks,Cruel, Pyramid};
 use std::ops::{Index};
 use tesserae::{Graphic,Tile,TileSet};
 use sdl2::pixels::Color;
@@ -28,10 +28,12 @@ use utils::color::{*};
 struct GraphicsSet<T> {
     table: Graphic<T>,
     back_card: Graphic<T>,
+    highlight_card: Graphic<T>,
     cards: Vec<Graphic<T>>,
     well: Graphic<T>,
     emblem: Graphic<T>,
     emblem_shadow: Graphic<T>,
+
     black_border: Graphic<T>,
     win: Graphic<T>,
     tile_set: TileSet,
@@ -42,6 +44,7 @@ impl <'r> GraphicsSet<Texture<'r>> {
     const BACK_DARK : Color = rgba(32,74,135,255);
     const BACK_LIGHT : Color = rgba(52,101,164,255);
     const TRANSLUCENT : Color = rgba(255,255,255,128);
+    const HIGHLIGHT   : Color = rgba(255,255,0,128);
     fn blank_card(contents:Tile, border: Color) -> Graphic<()> {
         let mut ret = Graphic::blank(5, 6);
         ret[(0,0)] = Tile{fg:border,bg:TRANSPARENT,index:168};
@@ -118,6 +121,7 @@ impl <'r> GraphicsSet<Texture<'r>> {
         let tile_set = TileSet::load_from(Cursor::new(&include_bytes!("../../tiles")[..]));
         let mut table = Graphic::solid(640/8, 480/8, Tile {fg: Self::BG_LIGHT, bg:Self::BG_DARK, index:255}).textured(texture_creator);
         let mut back_card = Self::blank_card(Tile {fg: Self::BACK_LIGHT, bg:Self::BACK_DARK, index:192}, Self::BACK_LIGHT).textured(texture_creator);
+        let mut highlight_card = Self::blank_card(Tile {fg: Self::HIGHLIGHT, bg:Self::BACK_DARK, index:1}, Self::HIGHLIGHT).textured(texture_creator);
         let mut cell = Self::blank_card(Tile{fg:Self::TRANSLUCENT, bg:Self::TRANSLUCENT, index:1}, WHITE).textured(texture_creator);
         let mut emblem_shadow = Graphic::solid(2,1,Tile {bg: TRANSPARENT, fg: BLACK, index:316}).textured(texture_creator);
         let mut emblem  = Graphic::solid(2,1,Tile {bg: TRANSPARENT, fg: WHITE, index:316}).textured(texture_creator);
@@ -127,6 +131,7 @@ impl <'r> GraphicsSet<Texture<'r>> {
         emblem_shadow.update_texture(&tile_set);
         table.update_texture(&tile_set);
         back_card.update_texture(&tile_set);
+        highlight_card.update_texture(&tile_set);
         cell.update_texture(&tile_set);
         let mut cards = Vec::new();
         for i in 1..=13 {
@@ -166,6 +171,7 @@ impl <'r> GraphicsSet<Texture<'r>> {
             tile_set: tile_set,
             emblem: emblem,
             emblem_shadow: emblem_shadow,
+            highlight_card: highlight_card
         }
     }
 
@@ -408,6 +414,7 @@ pub struct Table {
     history: Vec<Vec<Move>>,
     animations: Vec<(Animation,u32)>, 
     move_count: u32,   
+    selection: Option<GameObject>
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -538,6 +545,7 @@ impl Table {
             self.shift_then(src,dest,num_cards,Box::new(|_| {}));
     }
     pub fn end_move(&mut self) {
+        self.deselect();
         if if let Some(h) = self.history.last() {
                 h.len() > 0
             } else { true }  {
@@ -554,6 +562,7 @@ impl Table {
         } else { false }
     }
     pub fn undo(&mut self) {
+        self.deselect();
         if self.can_undo() {
             self.history.truncate(self.history.len() - 1);
             let mut moves = if let Some(h) = self.history.last_mut() {                    
@@ -668,14 +677,15 @@ impl Table {
             wells: Vec::new(),
             stacks: Vec::new(),
             history: Vec::new(),
-            move_count: 0
+            move_count: 0,
+            selection: None
         };        
         T::new_game(&mut table);
         table.history.push(Vec::new());
         table
     }
 
-    fn draw<'t>(&self, canvas: &mut Canvas<Window>, graphics: &GraphicsSet<Texture<'t>>) {
+    fn draw<'t>(&self, canvas: &mut Canvas<Window>, show_selection: bool, graphics: &GraphicsSet<Texture<'t>>) {
         graphics.table.draw(canvas,(0,0));
         for i in &self.decks {
             i.draw(canvas,graphics)
@@ -688,6 +698,16 @@ impl Table {
         }
         for (x,i) in &self.animations {
             x.draw(canvas,graphics, *i)
+        }
+        if show_selection && self.animations.len() == 0 {
+            if let Some(n) = self.selection {
+                let pos = match n {
+                    GameObject::Well(i)  => self.well(i).top_position(),
+                    GameObject::Deck(i)  => self.deck(i).position,
+                    GameObject::Stack(i) => { let p = self.stack(i).top_position(); (p.0,p.1-10)},
+                };
+                graphics.highlight_card.draw(canvas,(pos.0-6,pos.1-6));
+            }
         }
     }
 
@@ -751,6 +771,12 @@ impl Table {
             }
         };
         None
+    }
+    pub fn select(&mut self, obj: GameObject) {
+        self.selection = Some(obj);
+    }
+    pub fn deselect(&mut self) {
+        self.selection = None;
     }
 
 }
@@ -833,6 +859,9 @@ fn main_loop<RULES:Rules>(mut window:Window, sdl_context: &Sdl) -> (Option<Varia
                             .add(MenuItem::new("Spider 2-Suit", 55, Keycode::Num4,&texture_creator,&graphics_set.tile_set))
                             .add(MenuItem::new("Spider 4-Suit", 56, Keycode::Num5,&texture_creator,&graphics_set.tile_set))
                             .add(MenuItem::separator(136, &texture_creator,&graphics_set.tile_set))
+                            .add(MenuItem::new("Pyramid 1-Draw", 352, Keycode::F1,&texture_creator,&graphics_set.tile_set))
+                            .add(MenuItem::new("Pyramid 3-Draw", 353, Keycode::F2,&texture_creator,&graphics_set.tile_set))
+                            .add(MenuItem::separator(136, &texture_creator,&graphics_set.tile_set))
                             .add(MenuItem::new("Golf", 57, Keycode::Num6,&texture_creator,&graphics_set.tile_set))
                             .add(MenuItem::new("TriPeaks", 58, Keycode::Num7,&texture_creator,&graphics_set.tile_set))
                             .add(MenuItem::separator(136, &texture_creator,&graphics_set.tile_set))
@@ -851,9 +880,11 @@ fn main_loop<RULES:Rules>(mut window:Window, sdl_context: &Sdl) -> (Option<Varia
     rate_limiter.set_framerate(60).unwrap();
     let mut micro_mode = false;
     loop {
-        table.draw(&mut canvas, &graphics_set);
         if let Some((cards,_)) = &attached_cards {
+            table.draw(&mut canvas, false, &graphics_set);
             Stack::draw_cards(&cards, 0, false, (mx + grab_offset.0,my + grab_offset.1), &mut canvas, &graphics_set);
+        } else {
+            table.draw(&mut canvas,true,&graphics_set);
         }
         move_count_gfx.draw_rect(0, 0, 4, 1, Tile {fg: TRANSPARENT, bg: TRANSPARENT, index:0});
         move_count_gfx.draw_text(&table.move_count.to_string(), &graphics_set.tile_set , 0, 0, WHITE, TRANSPARENT);
@@ -918,6 +949,12 @@ fn main_loop<RULES:Rules>(mut window:Window, sdl_context: &Sdl) -> (Option<Varia
                         },
                         Event::KeyDown { keycode: Some(Keycode::Num9), ..} => {
                             return (Some(Variant::Cruel), canvas.into_window());
+                        },
+                        Event::KeyDown { keycode: Some(Keycode::F1), ..} => {
+                            return (Some(Variant::PyramidOne), canvas.into_window());
+                        },
+                        Event::KeyDown { keycode: Some(Keycode::F2), ..} => {
+                            return (Some(Variant::PyramidThree), canvas.into_window());
                         },
                         Event::KeyDown { keycode: Some(Keycode::F9), ..} => {
                             if micro_mode {
@@ -1055,7 +1092,9 @@ enum Variant {
     Golf,
     Cruel,
     TriPeaks,
-    FreeCell
+    FreeCell,
+    PyramidOne,
+    PyramidThree
 }
 fn choose(window : Window, sdl_context:&Sdl, variant : Variant) {
     if let (Some(v), w) = match variant {
@@ -1067,7 +1106,9 @@ fn choose(window : Window, sdl_context:&Sdl, variant : Variant) {
         Variant::Golf          => main_loop::<Golf>(window,sdl_context),
         Variant::Cruel         => main_loop::<Cruel>(window,sdl_context),
         Variant::TriPeaks      => main_loop::<TriPeaks>(window,sdl_context),
-        Variant::FreeCell      => main_loop::<FreeCell>(window,sdl_context)
+        Variant::FreeCell      => main_loop::<FreeCell>(window,sdl_context),
+        Variant::PyramidOne    => main_loop::<Pyramid<OneDraw>>(window,sdl_context),
+        Variant::PyramidThree  => main_loop::<Pyramid<ThreeDraw>>(window,sdl_context),
     } {
         choose(w, sdl_context,v);
     }
@@ -1083,6 +1124,8 @@ fn main() {
         .unwrap();
     let arg = env::args().nth(1).unwrap_or(String::from("spider2"));
     match &arg[..] {
+        "pyramid3" => choose(window,&sdl_context,Variant::PyramidThree),
+        "pyramid1" => choose(window,&sdl_context,Variant::PyramidOne),
         "klondike3" => choose(window,&sdl_context,Variant::KlondikeThree),
         "klondike1" => choose(window,&sdl_context,Variant::KlondikeOne),
         "golf"      => choose(window,&sdl_context,Variant::Golf),
@@ -1092,7 +1135,7 @@ fn main() {
         "spider4"   => choose(window,&sdl_context,Variant::SpiderFour),
         "freecell"  => choose(window,&sdl_context,Variant::FreeCell),
         "cruel"     => choose(window,&sdl_context,Variant::Cruel),
-        _ => println!("Available games: klondike1, klondike3, spider1, spider2, spider4, cruel, golf, tripeaks, freecell")
+        _ => println!("Available games: klondike1, klondike3, spider1, spider2, spider4, pyramid1, pyramid3, cruel, golf, tripeaks, freecell")
     }
     //cards::main_loop::<Spider<OneSuit>>();
     
