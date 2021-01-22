@@ -13,6 +13,10 @@ tainan::
 	cd tainan && cargo bundle --release
 	butler push target/release/bundle/osx/Tainan.app liamoc/mep-tainan:osx
 
+ishi::
+	cd ishi && cargo bundle --release
+	butler push target/release/bundle/osx/Ishi.app liamoc/mep-ishi:osx
+
 solitude::
 	cd solitude && cargo bundle --release
 	butler push target/release/bundle/osx/Solitude.app liamoc/mep-solitude:osx

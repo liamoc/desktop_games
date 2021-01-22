@@ -9,6 +9,7 @@ pub const NEUTRAL_GRAY : Color = rgba(186,189,182,255);
 pub const DARKER_GRAY : Color = rgba(156,159,152,255);
 pub const WHITE : Color = rgba(255,255,255,255);
 pub const BLUE : Color = rgba(32,74,135,255);
+pub const PALE_BLUE : Color = rgba(114,159,207,255);
 pub const BRIGHT_GREEN : Color = rgba(136,226,52,255);
 pub const ORANGE : Color = rgba(245,121,0,255);
 pub const PALE_ORANGE : Color = rgba(252,175,62,255);

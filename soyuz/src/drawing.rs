@@ -219,7 +219,7 @@ impl <'r> BaseDrawingContext<'r> {
                     if x >= o && x - o < g.board().size().0 as i32 {
                         let ps = match x {
                             0..=3 => PieceShape::Z,
-                            3..=7 => PieceShape::J,
+                            4..=7 => PieceShape::J,
                             8..=11 => PieceShape::T,
                             12..=15 => PieceShape::S,
                             16..=19 => PieceShape::L,
