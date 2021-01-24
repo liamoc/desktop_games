@@ -16,6 +16,7 @@ pub const PALE_ORANGE : Color = rgba(252,175,62,255);
 pub const GREEN : Color = rgba(78,108,6,255);
 pub const PURPLE : Color = rgba(92,52,102,255);
 pub const TEAL : Color = rgba(27,128,120,255);
+pub const DARK_TEAL : Color = rgba(17,108,100,255);
 pub const CRIMSON : Color = rgba(141,0,0,255);
 pub const DARK_RED : Color = rgba(164,0,0,255);
 pub const AMBER : Color = rgba(159,76,0,255);
