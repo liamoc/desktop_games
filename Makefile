@@ -2,6 +2,9 @@ upto11::
 	cd upto11 && cargo bundle --release
 	butler push target/release/bundle/osx/Up\ to\ 11.app liamoc/mep-up-to-11:osx
 
+mageja::
+	cd mageja && cargo bundle --release
+	butler push target/release/bundle/osx/Mageja.app liamoc/mep-mageja:osx
 allhands::
 	cd allhands && cargo bundle --release
 	butler push target/release/bundle/osx/All\ Hands.app liamoc/mep-all-hands:osx
