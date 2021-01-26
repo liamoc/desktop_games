@@ -2,6 +2,9 @@ upto11::
 	cd upto11 && cargo bundle --release
 	butler push target/release/bundle/osx/Up\ to\ 11.app liamoc/mep-up-to-11:osx
 
+micro-chess::
+	cd micro-chess && cargo bundle --release
+	butler push target/release/bundle/osx/Micro\ Chess.app liamoc/mep-micro-chess:osx
 mageja::
 	cd mageja && cargo bundle --release
 	butler push target/release/bundle/osx/Mageja.app liamoc/mep-mageja:osx

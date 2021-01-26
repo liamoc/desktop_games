@@ -1,3 +1,9 @@
+All assets are under the CC0 license.
+
+
+All code is under the BSD3 license *except* for Micro-chess which is under GPL3 due to the dependency on littlewing.
+
+
 Copyright 2020 Liam O'Connor
 
 Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:

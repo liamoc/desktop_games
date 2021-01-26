@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "utils",
+    "micro-chess",
     "archaeologist",
     "solitude",
     "soyuz",
