@@ -27,27 +27,39 @@ struct Emblem<'r> {
 }
 impl <'r> Emblem<'r> {
     fn new<T>(start: usize, color: Color, shadow_color: Color, tile_set:  &TileSet, texture_creator : &'r TextureCreator<T>) -> Emblem<'r> {
-        let mut graphic = Graphic::blank(3,2).textured(texture_creator);
-        let mut shadow  = Graphic::blank(3,2).textured(texture_creator);
-        graphic[(0,0)] = Tile { fg: color, bg: TRANSPARENT, index: start};
-        graphic[(1,0)] = Tile { fg: color, bg: TRANSPARENT, index: start + 1};
-        graphic[(2,0)] = Tile { fg: color, bg: TRANSPARENT, index: start + 2};
-        graphic[(0,1)] = Tile { fg: color, bg: TRANSPARENT, index: start + 16};
-        graphic[(1,1)] = Tile { fg: color, bg: TRANSPARENT, index: start + 17};
-        graphic[(2,1)] = Tile { fg: color, bg: TRANSPARENT, index: start + 18};
-        shadow[(0,0)] = Tile { fg: shadow_color, bg: TRANSPARENT, index: start};
-        shadow[(1,0)] = Tile { fg: shadow_color, bg: TRANSPARENT, index: start + 1};
-        shadow[(2,0)] = Tile { fg: shadow_color, bg: TRANSPARENT, index: start + 2};
-        shadow[(0,1)] = Tile { fg: shadow_color, bg: TRANSPARENT, index: start + 16};
-        shadow[(1,1)] = Tile { fg: shadow_color, bg: TRANSPARENT, index: start + 17};
-        shadow[(2,1)] = Tile { fg: shadow_color, bg: TRANSPARENT, index: start + 18};
+        let mut graphic = Graphic::blank(2,2).textured(texture_creator);
+        let mut shadow  = Graphic::blank(2,2).textured(texture_creator);
+
+        if start == 292 {
+            graphic[(0,0)] = Tile { fg: color, bg: TRANSPARENT, index: 288};
+            graphic[(1,0)] = Tile { fg: color, bg: TRANSPARENT, index: 289};
+            shadow[(0,0)] = Tile { fg: shadow_color, bg: TRANSPARENT, index: 288};
+            shadow[(1,0)] = Tile { fg: shadow_color, bg: TRANSPARENT, index: 289};
+        } else {
+            graphic[(0,0)] = Tile { fg: color, bg: TRANSPARENT, index: start};
+            graphic[(1,0)] = Tile { fg: color, bg: TRANSPARENT, index: start + 1};
+            shadow[(0,0)] = Tile { fg: shadow_color, bg: TRANSPARENT, index: start};
+            shadow[(1,0)] = Tile { fg: shadow_color, bg: TRANSPARENT, index: start + 1};
+        }
+        if start == 288 {
+            graphic[(0,1)] = Tile { bg: color, fg: TRANSPARENT, index: 207};
+            graphic[(1,1)] = Tile { bg: color, fg: TRANSPARENT, index: 206};
+            shadow[(0,1)] = Tile { bg: shadow_color, fg: TRANSPARENT, index: 207};
+            shadow[(1,1)] = Tile { bg: shadow_color, fg: TRANSPARENT, index: 206};
+        } else {
+            graphic[(0,1)] = Tile { fg: color, bg: TRANSPARENT, index: start + 16};
+            graphic[(1,1)] = Tile { fg: color, bg: TRANSPARENT, index: start + 17};
+            shadow[(0,1)] = Tile { fg: shadow_color, bg: TRANSPARENT, index: start + 16};
+            shadow[(1,1)] = Tile { fg: shadow_color, bg: TRANSPARENT, index: start + 17};
+        }
         graphic.update_texture(&tile_set);
         shadow.update_texture(&tile_set);
         Emblem {
             graphic, shadow
         }
     }
-    fn draw<T:RenderTarget>(&self, canvas : &mut Canvas<T>, pos: (i32,i32)) {
+    fn draw<T:RenderTarget>(&self, canvas : &mut Canvas<T>, pos_unshifted: (i32,i32)) {
+        let pos = (pos_unshifted.0 + 4, pos_unshifted.1);
         self.shadow.draw(canvas,(pos.0+1,pos.1+1));
         self.shadow.draw(canvas,(pos.0-1,pos.1+1));
         self.shadow.draw(canvas,(pos.0-1,pos.1-1));
@@ -423,12 +435,12 @@ impl <'r,T: 'r> Game<'r,T> {
         let mut overlay = Graphic::load_from(Cursor::new(&include_bytes!("../chrome_overlay")[..])).unwrap().textured(&texture_creator);
         chrome.update_texture(&tile_set);
         overlay.update_texture(&tile_set);
-        let silver_coin = Emblem::new(416,NEUTRAL_GRAY,rgba(85,87,83,255), &tile_set,texture_creator);
-        let gold_coin = Emblem::new(416,YELLOW,DARK_YELLOW,&tile_set,texture_creator);
-        let spade = Emblem::new(294,rgba(173,127,168,255),rgba(92,52,102,255),&tile_set,texture_creator);
+        let silver_coin = Emblem::new(276,NEUTRAL_GRAY,rgba(85,87,83,255), &tile_set,texture_creator);
+        let gold_coin = Emblem::new(276,YELLOW,DARK_YELLOW,&tile_set,texture_creator);
+        let spade = Emblem::new(292,rgba(173,127,168,255),rgba(92,52,102,255),&tile_set,texture_creator);
         let diamond = Emblem::new(288,rgba(114,159,207,255),rgba(8,32,74,255),&tile_set,texture_creator);
-        let heart = Emblem::new(291,rgba(239,41,41,255),CRIMSON,&tile_set,texture_creator);
-        let club = Emblem::new(297,rgba(85,87,83,255),DARK_CHARCOAL,&tile_set,texture_creator);
+        let heart = Emblem::new(290,rgba(239,41,41,255),CRIMSON,&tile_set,texture_creator);
+        let club = Emblem::new(294,rgba(85,87,83,255),DARK_CHARCOAL,&tile_set,texture_creator);
         let credits_gfx = Graphic::blank(6,1).textured(texture_creator);
         let bank_gfx = Graphic::blank(6,1).textured(texture_creator);
         let go_button = GoButton::new(texture_creator,&tile_set);
@@ -638,7 +650,6 @@ impl <'r,T: 'r> Game<'r,T> {
         }
     }
     fn payout(&mut self) {
-        println!("{:?} {:?} {:?}",self.reels[0].current_piece(),self.reels[1].current_piece(),self.reels[2].current_piece());
         if self.reels[0].current_piece() == self.reels[1].current_piece() && self.reels[1].current_piece() == self.reels[2].current_piece() {
             self.reels[0].highlight = FULL_SWEEP_COLOR;
             self.reels[1].highlight = FULL_SWEEP_COLOR;

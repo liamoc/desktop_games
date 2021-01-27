@@ -33,7 +33,7 @@ struct GraphicsSet<T> {
     well: Graphic<T>,
     emblem: Graphic<T>,
     emblem_shadow: Graphic<T>,
-
+    big_suits: [Graphic<T>;4],
     black_border: Graphic<T>,
     win: Graphic<T>,
     tile_set: TileSet,
@@ -102,18 +102,49 @@ impl <'r> GraphicsSet<Texture<'r>> {
         }};
         g[(2,4)] = g[(2,1)];
         g[(3,4)] = g[(1,1)];
-        let offset = match card.suit {
-            Suit::Diamonds => 0,
-            Suit::Hearts => 3,
-            Suit::Spades => 6,
-            Suit::Clubs => 9
+        //let offset = match card.suit {
+        //    Suit::Diamonds => 0,
+        //    Suit::Hearts => 3,
+        //    Suit::Spades => 6,
+        //    Suit::Clubs => 9
+        //};
+        //g[(1,2)] = Tile{fg:fg, bg: WHITE, index: 288 + offset};
+        //g[(2,2)] = Tile{fg:fg, bg: WHITE, index: 289 + offset};
+        //g[(3,2)] = Tile{fg:fg, bg: WHITE, index: 290 + offset};
+        //g[(1,3)] = Tile{fg:fg, bg: WHITE, index: 304 + offset};
+        //g[(2,3)] = Tile{fg:fg, bg: WHITE, index: 305 + offset};
+        //g[(3,3)] = Tile{fg:fg, bg: WHITE, index: 306 + offset};
+        g
+    }
+    fn suit_gfx<T>(suit : Suit, tile_set:&TileSet, texture_creator: &'r TextureCreator<T>) -> Graphic<Texture<'r>> {
+        let mut g = Graphic::blank(2,2).textured(texture_creator);
+        match suit {
+            Suit::Diamonds => {
+                g[(0,0)] = Tile {index: 288, fg: DARK_RED, bg: TRANSPARENT};
+                g[(1,0)] = Tile {index: 289, fg: DARK_RED, bg: TRANSPARENT};
+                g[(0,1)] = Tile {index: 207, bg: DARK_RED, fg: TRANSPARENT};
+                g[(1,1)] = Tile {index: 206, bg: DARK_RED, fg: TRANSPARENT};
+            },
+            Suit::Hearts => {
+                g[(0,0)] = Tile {index: 290, fg: DARK_RED, bg: TRANSPARENT};
+                g[(1,0)] = Tile {index: 291, fg: DARK_RED, bg: TRANSPARENT};
+                g[(0,1)] = Tile {index: 306, fg: DARK_RED, bg: TRANSPARENT};
+                g[(1,1)] = Tile {index: 307, fg: DARK_RED, bg: TRANSPARENT};
+            },
+            Suit::Spades => {
+                g[(0,0)] = Tile {index: 288, fg: BLACK, bg: TRANSPARENT};
+                g[(1,0)] = Tile {index: 289, fg: BLACK, bg: TRANSPARENT};
+                g[(0,1)] = Tile {index: 308, fg: BLACK, bg: TRANSPARENT};
+                g[(1,1)] = Tile {index: 309, fg: BLACK, bg: TRANSPARENT};
+            },
+            Suit::Clubs => {
+                g[(0,0)] = Tile {index: 294, fg: BLACK, bg: TRANSPARENT};
+                g[(1,0)] = Tile {index: 295, fg: BLACK, bg: TRANSPARENT};
+                g[(0,1)] = Tile {index: 310, fg: BLACK, bg: TRANSPARENT};
+                g[(1,1)] = Tile {index: 311, fg: BLACK, bg: TRANSPARENT};
+            }
         };
-        g[(1,2)] = Tile{fg:fg, bg: WHITE, index: 288 + offset};
-        g[(2,2)] = Tile{fg:fg, bg: WHITE, index: 289 + offset};
-        g[(3,2)] = Tile{fg:fg, bg: WHITE, index: 290 + offset};
-        g[(1,3)] = Tile{fg:fg, bg: WHITE, index: 304 + offset};
-        g[(2,3)] = Tile{fg:fg, bg: WHITE, index: 305 + offset};
-        g[(3,3)] = Tile{fg:fg, bg: WHITE, index: 306 + offset};
+        g.update_texture(tile_set);
         g
     }
     fn new<T>(texture_creator: &'r TextureCreator<T>) -> GraphicsSet<Texture<'r>> {
@@ -160,8 +191,14 @@ impl <'r> GraphicsSet<Texture<'r>> {
         black_border.update_texture(&tile_set);
         let mut win = Graphic::load_from(Cursor::new(&include_bytes!("../win")[..])).unwrap().textured(&texture_creator);
         win.update_texture(&tile_set);
-
+        let big_suits = [
+            Self::suit_gfx(Suit::Clubs, &tile_set, &texture_creator),
+            Self::suit_gfx(Suit::Spades, &tile_set, &texture_creator),
+            Self::suit_gfx(Suit::Diamonds, &tile_set, &texture_creator),
+            Self::suit_gfx(Suit::Hearts, &tile_set, &texture_creator),
+        ];
         GraphicsSet {
+            big_suits,
             table: table,
             back_card: back_card,
             cards: cards,
@@ -237,6 +274,13 @@ impl Card {
         graphics.black_border.draw(canvas,(position.0-7,position.1-7));
         graphics.black_border.draw(canvas,(position.0-5,position.1-7));
         graphics[*self].draw(canvas,(position.0-6,position.1-6));
+        let g = match self.suit {
+            Suit::Clubs => 0,
+            Suit::Spades => 1,
+            Suit::Diamonds => 2,
+            Suit::Hearts => 3,
+        };
+        graphics.big_suits[g].draw(canvas,(position.0+6,position.1+9));
     }
 
 }

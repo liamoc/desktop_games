@@ -86,7 +86,7 @@ impl <'r> GraphicsSet<Texture<'r>> {
         }
         table.update_texture(&tile_set);
         let pieces_black = [
-            Self::piece(texture_creator,&tile_set,DARK_CHARCOAL,198,199,214,215),
+            Self::piece(texture_creator,&tile_set,DARK_CHARCOAL,198,0,214,0),
             Self::piece(texture_creator,&tile_set,DARK_CHARCOAL,180,181,212,213),
             Self::piece(texture_creator,&tile_set,DARK_CHARCOAL,182,183,212,213),
             Self::piece(texture_creator,&tile_set,DARK_CHARCOAL,208,209,216,213),
@@ -95,7 +95,7 @@ impl <'r> GraphicsSet<Texture<'r>> {
         ];
         let shade = rgba(135,137,133,255);
         let pieces_shaded = [
-            Self::piece(texture_creator,&tile_set,shade,198,199,214,215),
+            Self::piece(texture_creator,&tile_set,shade,198,0,214,0),
             Self::piece(texture_creator,&tile_set,shade,180,181,212,213),
             Self::piece(texture_creator,&tile_set,shade,182,183,212,213),
             Self::piece(texture_creator,&tile_set,shade,208,209,216,213),
@@ -103,7 +103,7 @@ impl <'r> GraphicsSet<Texture<'r>> {
             Self::piece(texture_creator,&tile_set,shade,196,197,210,211),
         ];
         let pieces_white = [
-            Self::piece(texture_creator,&tile_set,WHITE,198,199,214,215),
+            Self::piece(texture_creator,&tile_set,WHITE,198,0,214,0),
             Self::piece(texture_creator,&tile_set,WHITE,180,181,212,213),
             Self::piece(texture_creator,&tile_set,WHITE,182,183,212,213),
             Self::piece(texture_creator,&tile_set,WHITE,208,209,216,213),
@@ -125,6 +125,7 @@ fn draw_piece<'r>(sel : Piece, canvas: &mut Canvas<Window>, graphics: &GraphicsS
     } else {
         &graphics.pieces_shaded
     };
+    let shift = if sel.is_pawn() { 4 } else { 0 };
     let ix = if sel.is_pawn() { 0 }
     else if sel.is_rook() { 1 }
     else if sel.is_bishop() { 2 }
@@ -132,15 +133,15 @@ fn draw_piece<'r>(sel : Piece, canvas: &mut Canvas<Window>, graphics: &GraphicsS
     else if sel.is_queen() { 4 }
     else if sel.is_king() { 5 }
     else { 255 };
-    outline_set[ix].draw(canvas,(position.0-1,position.1));
-    outline_set[ix].draw(canvas,(position.0+1,position.1));
-    outline_set[ix].draw(canvas,(position.0-1,position.1+1));
-    outline_set[ix].draw(canvas,(position.0,position.1+1));
-    outline_set[ix].draw(canvas,(position.0+1,position.1+1));
-    outline_set[ix].draw(canvas,(position.0-1,position.1-1));
-    outline_set[ix].draw(canvas,(position.0,position.1-1));
-    outline_set[ix].draw(canvas,(position.0+1,position.1-1));
-    main_set[ix].draw(canvas,position);
+    outline_set[ix].draw(canvas,(position.0-1+shift,position.1));
+    outline_set[ix].draw(canvas,(position.0+1+shift,position.1));
+    outline_set[ix].draw(canvas,(position.0-1+shift,position.1+1));
+    outline_set[ix].draw(canvas,(position.0+shift,position.1+1));
+    outline_set[ix].draw(canvas,(position.0+1+shift,position.1+1));
+    outline_set[ix].draw(canvas,(position.0-1+shift,position.1-1));
+    outline_set[ix].draw(canvas,(position.0+shift,position.1-1));
+    outline_set[ix].draw(canvas,(position.0+1+shift,position.1-1));
+    main_set[ix].draw(canvas,(position.0+shift,position.1));
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
