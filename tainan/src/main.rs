@@ -4,6 +4,9 @@ extern crate sdl2;
 extern crate rand;
 extern crate utils;
 
+use std::collections::HashMap;
+use std::cmp::Ordering;
+use std::collections::BinaryHeap;
 use utils::menu::{*};
 
 use tesserae::{Graphic,Tile,TileSet};
@@ -196,27 +199,105 @@ impl MTile {
     }
 
 }
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+enum SenDirection {
+    N, S, E, W
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+struct Sen {
+    direction: SenDirection,
+    x: i32,
+    y: i32, 
+    turns: usize,
+    destination: (i32,i32),
+}
+impl Sen {
+    fn cost(&self) -> (i32,i32) {
+        (self.turns as i32,(self.destination.0 - self.x).abs() + (self.destination.1 - self.y).abs())
+    }
+    fn straight_on(&self) -> Sen {
+        Sen {
+            direction: self.direction,
+            x: match self.direction {
+                SenDirection::E => self.x + 2,
+                SenDirection::W => self.x - 2,
+                _ => self.x,
+            },
+            y: match self.direction {
+                SenDirection::N => self.y - 2,
+                SenDirection::S => self.y + 2,
+                _ => self.y
+            },
+            turns: self.turns,
+            destination: self.destination
+        }
+    }
+    fn turn_left(&self) -> Sen {
+        Sen {
+            direction: match self.direction {
+                SenDirection::N => SenDirection::W,
+                SenDirection::W => SenDirection::S,
+                SenDirection::S => SenDirection::E,
+                SenDirection::E => SenDirection::N
+            },
+            x: self.x, 
+            y: self.y,
+            turns: self.turns+1,
+            destination: self.destination
+        }.straight_on()
+    }
+    fn turn_right(&self) -> Sen {
+        Sen {
+            direction: match self.direction {
+                SenDirection::S => SenDirection::W,
+                SenDirection::E => SenDirection::S,
+                SenDirection::N => SenDirection::E,
+                SenDirection::W => SenDirection::N
+            },
+            x: self.x, 
+            y: self.y,
+            turns: self.turns+1,
+            destination: self.destination
+        }.straight_on()
+    }
+}
+impl PartialOrd for Sen {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(other.cost().cmp(&self.cost()))
+    }
+}
+impl Ord for Sen {
+    fn cmp(&self, other: &Self) -> Ordering {
+        other.cost().cmp(&self.cost())
+    }
+}
 pub struct Table {    
-    tiles: [[[Option<MTile>;32];32];8],
-    frees: [[[bool;32];32];8],
-    layout: [[[bool;32];32];8],
+    tiles: [[[Option<MTile>;36];32];8],
+    frees: [[[bool;36];32];8],
+    layout: [[[bool;36];32];8],
     selected: Option<(usize,usize,usize)>,
     mouseover: Option<(usize,usize,usize)>,
     hint_cells: Vec<(usize,usize,usize)>,
     history: Vec<((usize,usize,usize),(usize,usize,usize),MTile,MTile)>,
+    gravity_history: Vec<Vec<(usize,usize)>>,
     display_frees: bool,
     game_won: bool,
     move_count: usize,
+    shisen: bool,
+    gravity: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Layout {
-    Turtle, Cube, Bridge, Castle, Pyramid
+    Turtle, Cube, Bridge, Castle, Pyramid, ShisenSho, ShisenGravity
 }
 impl Table {
     fn clear_layout(&mut self) {
+        self.shisen = false;
+        self.gravity = false;
         for z in 0..8 {
-            for x in 0..32 {
+            for x in 0..36 {
                 for y in 0..32 {
                     self.layout[z][y][x] = false;
                     self.tiles[z][y][x] = None;
@@ -314,6 +395,15 @@ impl Table {
         self.layout[5][13][15] = true;
         self.layout[6][13][15] = true;
     }
+    fn shisen_sho(&mut self) {
+        self.clear_layout();
+        for y in 0..8 {
+            for x in 0..18 {
+                self.layout[0][y*2+3][x*2] = true;
+            }
+        }
+        self.shisen = true;
+    }
     fn castle_layout(&mut self) {
         self.clear_layout();
         for (x,y) in vec![
@@ -382,7 +472,7 @@ impl Table {
         self.layout[4][10][15] = true;
     } 
     fn is_free_right(&self,z:usize,y:usize,x:usize) -> bool {
-        if x < 30 {
+        if x < 34 {
             let xx = x + 2;
             if self.tiles[z][y][xx].is_some() { return false }
             if y < 31 && self.tiles[z][y+1][xx].is_some() { return false }
@@ -399,19 +489,93 @@ impl Table {
         }
         return true
     }
+    fn shisen_apply_gravity(&mut self) {
+        let mut shifts = Vec::new();
+        let mut changed = true;
+        while changed {
+            changed = false;
+            for y in 0..7 {
+                for x in 0..18 {
+                    let yy = y*2+3;
+                    let xx = x*2;
+                    if self.tiles[0][yy][xx].is_some() && self.tiles[0][yy+2][xx].is_none() {
+                        changed = true;
+                        self.tiles[0][yy+2][xx] = Some(self.tiles[0][yy][xx].unwrap());
+                        self.tiles[0][yy][xx] = None;
+                        shifts.push((yy+2,xx))
+                    }
+                }
+            }
+        }
+        shifts.reverse();
+        self.gravity_history.push(shifts);
+    }
+    fn shisen_free(&self,y:i32,x:i32) -> bool {
+        if y < -2 || x < -2 || x >= 38 || y >= 34 { false } 
+        else { 
+        if y < 0 || x < 0 || x >= 36 || y >= 32 { true } else { self.tiles[0][y as usize][x as usize].is_none() }
+        }
+    }
+    fn shisen_path(&self,yy:i32,xx:i32,y:i32,x:i32) -> bool {
+        let mut heap = BinaryHeap::new();
+        let mut visited = HashMap::new();
+        if self.shisen_free(yy-2,xx) || (yy-2,xx) == (y,x) { 
+            let x = Sen {x: xx, y: yy-2, direction: SenDirection::N, destination: (x,y), turns: 0};
+            heap.push(x);
+            visited.insert((x.y,x.x,x.direction),x.cost());
+        }
+        if self.shisen_free(yy+2,xx) || (yy+2,xx) == (y,x)  { 
+            let x = Sen {x: xx, y: yy+2, direction: SenDirection::S, destination: (x,y), turns: 0};
+            heap.push(x);
+            visited.insert((x.y,x.x,x.direction),x.cost());
+        }
+        if self.shisen_free(yy,xx+2) || (yy,xx+2) == (y,x)  { 
+            let x = Sen {x: xx+2, y: yy, direction: SenDirection::E, destination: (x,y), turns: 0};
+            heap.push(x);
+            visited.insert((x.y,x.x,x.direction),x.cost());
+        }
+        if self.shisen_free(yy,xx-2) || (yy,xx-2) == (y,x) { 
+            let x = Sen {x: xx-2, y: yy, direction: SenDirection::W, destination: (x,y), turns: 0};
+            heap.push(x);
+            visited.insert((x.y,x.x,x.direction),x.cost());
+        }
+        while let Some(st) = heap.pop() {
+            if (st.x,st.y) == (x,y) {
+                return true
+            }
+            for neighbour in [st.straight_on(),st.turn_left(),st.turn_right()].iter() {
+                if (self.shisen_free(neighbour.y, neighbour.x) || (neighbour.y == y && neighbour.x == x)) && visited.get(&(neighbour.y,neighbour.x,neighbour.direction)).unwrap_or(&(999,0)) > &neighbour.cost() && neighbour.turns < 3 {
+                    heap.push(*neighbour);
+                    visited.insert((neighbour.y,neighbour.x,neighbour.direction),neighbour.cost());
+                }
+            }
+        }
+        false
+        //if self.shisen_free(yy+2,xx) { destinations.push((yy+2,xx))};
+        //if self.shisen_free(yy,xx+2) { destinations.push((yy,xx+2))};
+        //if self.shisen_free(yy,xx-2) { destinations.push((yy,xx-2))};
+
+    }
+    fn check_match(&self, zz:usize,yy:usize,xx:usize,z:usize,y:usize,x:usize) -> bool {
+        if let Some(t) = self.tiles[zz][yy][xx] {
+            if (z,y,x) != (zz,yy,xx) {
+                if self.frees[z][y][x] {
+                    if let Some(u) = self.tiles[z][y][x] {
+                        if MTile::matches(t, u) {
+                            return !self.shisen || self.shisen_path(yy as i32,xx as i32,y as i32,x as i32); //
+                        }
+                    }
+                }
+            }
+            return false;
+        } else { false }
+    }
     fn find_match_for(&self, zz: usize,yy:usize,xx:usize) -> Option<(usize,usize,usize)> {
-        let t = self.tiles[zz][yy][xx].unwrap();
         for z in (0..8).rev() {
             for y in 0..32 {
-                for x in 0..32 {
-                    if (z,y,x) != (zz,yy,xx) {
-                        if self.frees[z][y][x] {
-                            if let Some(u) = self.tiles[z][y][x] {
-                                if MTile::matches(t, u) {
-                                    return Some((z,y,x))
-                                }
-                            }
-                        }
+                for x in 0..36 {
+                    if self.check_match(zz,yy,xx,z,y,x) {
+                        return Some((z,y,x))
                     }
                 }
             }
@@ -421,9 +585,9 @@ impl Table {
     fn populate_board(&mut self) {        
         for z in 0..8 {
             for y in 0..32 {
-                for x in 0..32 {
+                for x in 0..36 {
                     if self.layout[z][y][x] {
-                        self.tiles[z][y][x] = Some(MTile {value: 255});
+                        self.tiles[z][y][x] = Some(MTile {value: (((y-3)/2)*18+(x/2)) as u8 });
                     } else {
                         self.tiles[z][y][x] = None;
                     }
@@ -432,11 +596,12 @@ impl Table {
         }
         let mut moves = Vec::new();
         loop {
+            if self.gravity { self.shisen_apply_gravity() }
             self.recalculate_frees();
             let mut locations = Vec::new();
             for z in 0..8 {
                 for y in 0..32 {
-                    for x in 0..32 {
+                    for x in 0..36 {
                         if self.tiles[z][y][x].is_some() && self.frees[z][y][x] {
                             locations.push((z,y,x));
                         }
@@ -446,10 +611,29 @@ impl Table {
             if locations.len() < 2 { break } 
             locations.shuffle(&mut thread_rng());
             let (z1,y1,x1) = locations.pop().unwrap();
-            let (z2,y2,x2) = locations.pop().unwrap();
+            let (z2,y2,x2) = if self.shisen {
+                let mut result = None;
+                for i in 0..locations.len() {
+                    if self.shisen_path(y1 as i32, x1 as i32, locations[i].1 as i32, locations[i].2 as i32) {
+                        result = Some(locations[i]);
+                        locations.remove(i);  
+                        break;                      
+                    }
+                }
+                result.unwrap()
+            } else {
+                locations.pop().unwrap()
+            };
+            let (yy1,xx1,yy2,xx2) = if self.gravity {
+                let v1 = self.tiles[z1][y1][x1].unwrap().value as usize;
+                let v2 = self.tiles[z2][y2][x2].unwrap().value as usize;
+                (v1/18*2+3,v1%18*2,v2/18*2+3,v2%18*2)
+            } else {
+                (y1,x1,y2,x2)
+            };
             self.tiles[z1][y1][x1] = None;
             self.tiles[z2][y2][x2] = None;
-            moves.push(((z1,y1,x1),(z2,y2,x2)));
+            moves.push(((z1,yy1,xx1),(z2,yy2,xx2)));
         }
         if self.game_won {
             self.game_won = false; 
@@ -458,6 +642,7 @@ impl Table {
                 self.tiles[z1][y1][x1] = deck.pop();
                 self.tiles[z2][y2][x2] = deck.pop();
             }
+            self.gravity_history = vec![];
         } else {
             self.populate_board();
         }
@@ -465,7 +650,7 @@ impl Table {
     fn hint(&mut self) {
         for z in (0..8).rev() {
             for y in 0..32 {
-                for x in 0..32 {
+                for x in 0..36 {
                     if self.tiles[z][y][x].is_some() && self.frees[z][y][x] {
                         if let Some((zz,yy,xx)) = self.find_match_for(z,y,x) {
                             self.hint_cells = Vec::new();
@@ -483,18 +668,19 @@ impl Table {
             for zz in z+1..8 {
                 if self.tiles[zz][y][x].is_some() { return false }
                 if x > 0 && self.tiles[zz][y][x-1].is_some() { return false }
-                if x < 31 && self.tiles[zz][y][x+1].is_some() { return false }
-                if y > 0 && x > 0 && self.tiles[zz][y-1][x].is_some() { return false }
-                if y > 0 && x < 31 && self.tiles[zz][y+1][x].is_some() { return false }
+                if x < 35 && self.tiles[zz][y][x+1].is_some() { return false }
+                if y > 0 && self.tiles[zz][y-1][x].is_some() { return false }
+                if y < 31 && self.tiles[zz][y+1][x].is_some() { return false }
                 if y > 0 && x > 0 && self.tiles[zz][y-1][x-1].is_some() { return false }
-                if y > 0 && x < 31 && self.tiles[zz][y-1][x+1].is_some() { return false }
+                if y > 0 && x < 35 && self.tiles[zz][y-1][x+1].is_some() { return false }
                 if y < 31 && x > 0 && self.tiles[zz][y+1][x-1].is_some() { return false }
-                if y < 31 && x < 31 && self.tiles[zz][y+1][x+1].is_some() { return false }
+                if y < 31 && x < 35 && self.tiles[zz][y+1][x+1].is_some() { return false }
             }
         }
         return true
     }
     fn is_free(&self, z:usize,y:usize,x:usize) -> bool {
+        if self.shisen { return true };
         self.is_free_top(z,y,x) && (self.is_free_left(z,y,x) || self.is_free_right(z,y,x))
     }
     fn recalculate_frees(&mut self) {
@@ -502,7 +688,7 @@ impl Table {
         self.game_won = true;
         for z in 0..8 {
             for y in 0..32 {
-                for x in 0..32 {
+                for x in 0..36 {
                     if self.tiles[z][y][x].is_some() {
                         self.game_won = false;
                         self.frees[z][y][x] = self.is_free(z,y,x);
@@ -516,16 +702,19 @@ impl Table {
     
     fn new(layout:Layout) -> Table {
         let mut table = Table {
-            tiles: [[[None;32];32];8],
-            frees: [[[false;32];32];8],
-            layout: [[[false;32];32];8],
+            tiles: [[[None;36];32];8],
+            frees: [[[false;36];32];8],
+            layout: [[[false;36];32];8],
             selected: None,
             mouseover: None,
             hint_cells: Vec::new(),
             game_won: false,
             display_frees: true,
             history: Vec::new(),
+            gravity_history: Vec::new(),
             move_count:0,
+            shisen: false,
+            gravity: false,
         };
         match layout {
             Layout::Cube => table.cube_layout(),
@@ -533,6 +722,8 @@ impl Table {
             Layout::Bridge => table.bridge_layout(),
             Layout::Castle => table.castle_layout(),
             Layout::Pyramid => table.pyramid_layout(),
+            Layout::ShisenSho => table.shisen_sho(),
+            Layout::ShisenGravity => { table.shisen_sho(); table.gravity = true}
         };
         table.populate_board();
         table.recalculate_frees();
@@ -541,9 +732,17 @@ impl Table {
     fn undo(&mut self) {
         self.deselect();
         if let Some(((z,y,x),(zz,yy,xx),t,u)) = self.history.pop() {
+            if self.gravity {
+                if let Some(ls) = self.gravity_history.pop() {
+                    for (y,x) in ls {
+                        self.tiles[0][y-2][x] = Some(self.tiles[0][y][x].unwrap());
+                        self.tiles[0][y][x] = None;
+                    }
+                }
+            }
             self.tiles[z][y][x] = Some(t);
             self.tiles[zz][yy][xx] = Some(u);
-            self.recalculate_frees();
+            self.recalculate_frees();        
         }
     }
     fn clicked(&mut self, position:Option<(usize,usize,usize)>) {
@@ -554,12 +753,14 @@ impl Table {
                         self.selected = position;
                         if let Some(t) = self.tiles[z][y][x] {
                             if let Some(u) = self.tiles[zz][yy][xx] {
-                                if MTile::matches(t,u) {
+                                if self.check_match(zz, yy, xx, z, y, x)  {
                                     self.tiles[z][y][x] = None;
                                     self.tiles[zz][yy][xx] = None;
                                     self.move_count+= 1;
                                     self.history.push(((z,y,x),(zz,yy,xx),t,u));
-                                    self.recalculate_frees();                                    
+                                    self.selected = None;
+                                    if self.gravity { self.shisen_apply_gravity(); }
+                                    self.recalculate_frees();
                                 } else {
                                     self.selected = position;
                                 }
@@ -579,23 +780,24 @@ impl Table {
     }
     fn draw<'t>(&self, canvas: &mut Canvas<Window>, graphics: &GraphicsSet<Texture<'t>>) {
         graphics.table.draw(canvas,(0,0));
+        let xshift = if self.shisen { -9 } else {0};
         for z in 0..8 {
             for y in (0..32).rev() {
-                for x in (0..32).rev() {
+                for x in (0..36).rev() {
                     if let Some(t) = self.tiles[z][y][x] {
-                        t.draw_base(canvas,graphics,(x as i32*7+(z as i32*2),y as i32*11+(z as i32*2)));
+                        t.draw_base(canvas,graphics,(x as i32*7+(z as i32*2)+xshift,y as i32*11+(z as i32*2)));
                     }
                 }
             }
             for y in (0..32).rev() {
-                for x in (0..32).rev() {
+                for x in (0..36).rev() {
                     if let Some(t) = self.tiles[z][y][x] {
                         let hl = 
                             if self.selected == Some((z,y,x)) { Some(HighlightType::Selected) } 
                             else if self.hint_cells.contains(&(z,y,x)) { Some (HighlightType::Hint) }
                             else if self.display_frees && self.frees[z][y][x] { if self.mouseover == Some((z,y,x)) { Some(HighlightType::Hover) } else { Some(HighlightType::Free) } } 
                             else if !self.display_frees && self.mouseover == Some((z,y,x)) { Some(HighlightType::Hover) } else  { None };
-                        t.draw(canvas, hl, graphics, (x as i32*7+(z as i32*2),y as i32*11+(z as i32*2)));
+                        t.draw(canvas, hl, graphics, (x as i32*7+(z as i32*2)+xshift,y as i32*11+(z as i32*2)));
                     }
                 }
             }
@@ -604,10 +806,11 @@ impl Table {
     }
 
     fn collides_tile(&self, position: (i32,i32)) -> Option<(usize, usize, usize)> {
+        let xshift = if self.shisen { 9 } else {0};
         for z in (0..8).rev() {
-            let bx = ((position.0 - 6 - z as i32 * 2) / 7).max(0) as usize;
+            let bx = ((position.0 + xshift - 6 - z as i32 * 2) / 7).max(0) as usize;
             let by = ((position.1 - 6 - z as i32 * 2) / 11).max(0) as usize;
-            if bx > 31 || by > 31 { continue };
+            if bx > 35 || by > 31 { continue };
             if self.tiles[z][by][bx].is_some() {
                 return Some((z,by,bx))
             }
@@ -647,6 +850,9 @@ fn main_loop(mut window:Window, sdl_context: &Sdl) {
                             .add(MenuItem::new("Bridge", 354, Keycode::F3,&texture_creator,&graphics_set.tile_set))
                             .add(MenuItem::new("Castle", 355, Keycode::F4,&texture_creator,&graphics_set.tile_set))
                             .add(MenuItem::new("Pyramid", 356, Keycode::F5,&texture_creator,&graphics_set.tile_set))
+                            .add(MenuItem::separator(136, &texture_creator,&graphics_set.tile_set))
+                            .add(MenuItem::new("Shisen-sho", 357, Keycode::F6,&texture_creator,&graphics_set.tile_set))
+                            .add(MenuItem::new("Shisen Gravity", 358, Keycode::F7,&texture_creator,&graphics_set.tile_set))
                             .add(MenuItem::separator(136, &texture_creator,&graphics_set.tile_set))
                             .add(MenuItem::new("Quit",363, Keycode::F12,&texture_creator,&graphics_set.tile_set)))
                     .add(Menu::new("ACTION",88,&texture_creator,&graphics_set.tile_set)
@@ -721,6 +927,18 @@ fn main_loop(mut window:Window, sdl_context: &Sdl) {
                     },
                     Event::KeyDown { keycode: Some(Keycode::F5), ..} => {
                         layout = Layout::Pyramid;
+                        let tog = table.display_frees;
+                        table = Table::new(layout);
+                        table.display_frees = tog;
+                    },
+                    Event::KeyDown { keycode: Some(Keycode::F6), ..} => {
+                        layout = Layout::ShisenSho;
+                        let tog = table.display_frees;
+                        table = Table::new(layout);
+                        table.display_frees = tog;
+                    },
+                    Event::KeyDown { keycode: Some(Keycode::F7), ..} => {
+                        layout = Layout::ShisenGravity;
                         let tog = table.display_frees;
                         table = Table::new(layout);
                         table.display_frees = tog;
