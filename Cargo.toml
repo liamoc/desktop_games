@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "utils",
+    "box-factory",
     "micro-chess",
     "archaeologist",
     "solitude",
@@ -16,5 +17,6 @@ members = [
     "jackpot",
     "allhands",
     "tainan",
-    "ishi"
+    "ishi",
+    "brooklyn"
 ]

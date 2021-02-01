@@ -94,6 +94,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "box-factory"
+version = "0.1.0"
+dependencies = [
+ "rand",
+ "sdl2",
+ "tesserae",
+ "utils",
+]
+
+[[package]]
+name = "brooklyn"
+version = "0.1.0"
+dependencies = [
+ "rand",
+ "sdl2",
+ "tesserae",
+ "utils",
+]
+
+[[package]]
 name = "byteorder"
 version = "1.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
