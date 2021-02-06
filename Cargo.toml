@@ -3,6 +3,7 @@ members = [
     "utils",
     "box-factory",
     "micro-chess",
+    "peggy",
     "archaeologist",
     "solitude",
     "soyuz",
