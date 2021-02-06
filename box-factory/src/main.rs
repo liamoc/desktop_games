@@ -487,7 +487,7 @@ fn main() {
         status_level.draw_rect(0,0,8,1,Tile{index:0,fg:TRANSPARENT,bg:TRANSPARENT});
         status_level.draw_text(&("Level ".to_owned() + &level.to_string()),&game.tile_set,0,0,BLACK,TRANSPARENT);
         status_level.update_texture(&game.tile_set);
-        status_score.draw_rect(0,0,2,1,Tile{index:0,fg:TRANSPARENT,bg:TRANSPARENT});
+        status_score.draw_rect(0,0,4,1,Tile{index:0,fg:TRANSPARENT,bg:TRANSPARENT});
         status_score.draw_text(&game.score.to_string(),&game.tile_set,0,0,BLACK,TRANSPARENT);
         status_score.update_texture(&game.tile_set);
         status_level.draw(&mut canvas, (8, HEIGHT as i32 * 12 + 22 ));
