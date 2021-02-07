@@ -1,5 +1,3 @@
-all:: upto11 allhands archaeologist solitude soyuz corbynball cylons taipan vermin gatchi vexation jackpot
-
 upto11::
 	./build_windows.sh upto11 mep-up-to-11
 
@@ -8,6 +6,9 @@ allhands::
 
 box-factory::
 	./build_windows.sh box-factory mep-box-factory
+
+peggy::
+	./build_windows.sh peggy mep-peggy
 
 micro-chess::
 	./build_windows.sh micro-chess mep-micro-chess
