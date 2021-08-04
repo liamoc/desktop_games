@@ -30,6 +30,9 @@ ishi::
 solitude::
 	./build_windows.sh solitude mep-solitude
 
+peggy::
+	./build_windows.sh peggy mep-peggy
+
 soyuz::
 	./build_windows.sh soyuz mep-soyuz
 
