@@ -60,8 +60,8 @@ impl <'r> GraphicsSet<Texture<'r>> {
             coords.draw_text(&y.to_string(), &tile_set, 9*2, y*2, DARKER_GRAY, TRANSPARENT);
             coords_rev.draw_text(&y.to_string(), &tile_set, 0, (9-y)*2, DARKER_GRAY, TRANSPARENT);
             coords_rev.draw_text(&y.to_string(), &tile_set, 9*2, (9-y)*2, DARKER_GRAY, TRANSPARENT);
-            coords.draw_text(&letters[(y-1) as usize].to_string(), &tile_set, y*2, 0, DARKER_GRAY, TRANSPARENT);
-            coords.draw_text(&letters[(y-1) as usize].to_string(), &tile_set, y*2, 9*2, DARKER_GRAY, TRANSPARENT);
+            coords.draw_text(&letters[(y-1) as usize].to_string(), &tile_set, (9-y)*2, 0, DARKER_GRAY, TRANSPARENT);
+            coords.draw_text(&letters[(y-1) as usize].to_string(), &tile_set, (9-y)*2, 9*2, DARKER_GRAY, TRANSPARENT);
             coords_rev.draw_text(&letters[(y-1) as usize].to_string(), &tile_set, y*2, 0, DARKER_GRAY, TRANSPARENT);
             coords_rev.draw_text(&letters[(y-1) as usize].to_string(), &tile_set, y*2, 9*2, DARKER_GRAY, TRANSPARENT);
             
@@ -221,7 +221,7 @@ impl Table {
         self.game.board[origin.1*8 + origin.0] = piece;
     }
     pub fn animate_piece(&mut self, dest:(usize,usize), piece:Piece, start_pos: (i32,i32), and_then: Box<dyn FnOnce(&mut Table)>) {
-        let dest_pos = (dest.0 as i32 * 16 + OFFSET.0, (if self.is_reversing()  {7 - dest.1} else {dest.1}) as i32 * 16 + OFFSET.1);        
+        let dest_pos = (if !self.is_reversing() { 7-dest.0 } else {dest.0} as i32 * 16 + OFFSET.0, (if self.is_reversing()  {7 - dest.1} else {dest.1}) as i32 * 16 + OFFSET.1);        
         self.animate_move(start_pos, dest_pos, piece, 14, and_then);
     } 
     fn new() -> Table {
@@ -240,9 +240,9 @@ impl Table {
         self.ai_player != Some(color::WHITE) //self.game_mode == 0 // && self.game.side() == color::WHITE
     }
     fn draw<'t>(&self, canvas: &mut Canvas<Window>, graphics: &GraphicsSet<Texture<'t>>) {
+        let reversing = self.is_reversing();
         graphics.table.draw(canvas,OFFSET);
         let mut i = 0;
-        let reversing = self.is_reversing();
         let mut y = if reversing { 7 } else { 0 }; 
         let step = if reversing { -1 } else {1 };
         let stop = if reversing { 0 } else { 7}; 
@@ -256,8 +256,9 @@ impl Table {
                 if let Some((ox,oy,dx,dy)) = self.highlights {
                     if (ox,oy) == (x as usize,y as usize) || (dx,dy) == (x as usize,y as usize) {
                         let yy = if reversing { 7 - y } else { y};
+                        let xx = if !reversing { 7 - x } else { x};
                         canvas.set_draw_color(rgba(150,150,255,128));
-                        canvas.fill_rect(Rect::new(x*16+OFFSET.0,yy*16+OFFSET.1,16,16)).unwrap();
+                        canvas.fill_rect(Rect::new(xx*16+OFFSET.0,yy*16+OFFSET.1,16,16)).unwrap();
                     }
                 }
             }
@@ -265,7 +266,12 @@ impl Table {
         loop {
             for x in 0.. 8 {
                 if self.game.board[i] != 0 {
-                    draw_piece(self.game.board[i], canvas, graphics, (x * 16+OFFSET.0, y * 16 + OFFSET.1));
+                    let xx = if !self.is_reversing() {
+                        7 - x
+                    } else {
+                        x
+                    };
+                    draw_piece(self.game.board[i], canvas, graphics, (xx * 16+OFFSET.0, y * 16 + OFFSET.1));
                 }
                 i += 1;
             }
@@ -341,7 +347,7 @@ impl Table {
         let b = m.to();
         let origin = ((a % 8) as usize, (a / 8) as usize);
         let dest = ((b % 8) as usize, (b / 8) as usize);
-        let start_pos = (origin.0 as i32*16 + OFFSET.0, (if self.is_reversing() { 7 - origin.1 as i32 } else { origin.1 as i32 }) * 16 + OFFSET.1);
+        let start_pos = ((if !self.is_reversing() { 7 - origin.0 } else {origin.0}) as i32*16 + OFFSET.0, (if self.is_reversing() { 7 - origin.1 as i32 } else { origin.1 as i32 }) * 16 + OFFSET.1);
         let piece = self.game.board[a as usize]; 
         self.game.board[a as usize] = 0;
         self.animate_piece(dest, piece, start_pos, Box::new(move |tbl| {
@@ -378,7 +384,8 @@ impl Table {
             let offset_x = (x * 16 + OFFSET.0) - position.0;
             let offset_y = (y * 16 + OFFSET.1) - position.1;
             let yy = if self.is_reversing() { 7 - y } else { y };
-            Some((self.game.board[(yy*8+x) as usize],x as usize, yy as usize, (offset_x,offset_y)))
+            let xx = if !self.is_reversing() { 7 - x } else { x };
+            Some((self.game.board[(yy*8+x) as usize],xx as usize, yy as usize, (offset_x,offset_y)))
         } else {
             None
         }
