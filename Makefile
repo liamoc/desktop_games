@@ -2,7 +2,6 @@ upto11::
 	cd upto11 && cargo bundle --release
 	butler push target/release/bundle/osx/Up\ to\ 11.app liamoc/mep-up-to-11:osx
 
-
 peggy::
 	cd peggy && cargo bundle --release
 	butler push target/release/bundle/osx/Peggy.app liamoc/mep-peggy:osx
