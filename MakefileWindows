@@ -1,16 +1,38 @@
-all:: upto11 allhands archaeologist solitude soyuz corbynball cylons taipan vermin gatchi vexation jackpot
-
 upto11::
 	./build_windows.sh upto11 mep-up-to-11
 
 allhands::
 	./build_windows.sh allhands mep-all-hands
 
+box-factory::
+	./build_windows.sh box-factory mep-box-factory
+
+peggy::
+	./build_windows.sh peggy mep-peggy
+
+micro-chess::
+	./build_windows.sh micro-chess mep-micro-chess
+
+brooklyn::
+	./build_windows.sh brooklyn mep-brooklyn
+
+mageja::
+	./build_windows.sh mageja mep-mageja
+
 archaeologist::
 	./build_windows.sh archaeologist mep-archaeologist
 
+tainan::
+	./build_windows.sh tainan mep-tainan
+
+ishi::
+	./build_windows.sh ishi mep-ishi
+
 solitude::
 	./build_windows.sh solitude mep-solitude
+
+peggy::
+	./build_windows.sh peggy mep-peggy
 
 soyuz::
 	./build_windows.sh soyuz mep-soyuz

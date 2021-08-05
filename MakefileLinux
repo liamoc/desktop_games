@@ -20,6 +20,27 @@ ishi::
 upto11::
 	./build_linux.sh upto11 mep-up-to-11
 
+peggy::
+	./build_linux.sh peggy mep-peggy
+
+box-factory::
+	./build_linux.sh box-factory mep-box-factory
+
+micro-chess::
+	./build_linux.sh micro-chess mep-micro-chess
+
+brooklyn::
+	./build_linux.sh brooklyn mep-brooklyn
+
+mageja::
+	./build_linux.sh mageja mep-mageja
+
+tainan::
+	./build_linux.sh tainan mep-tainan
+
+ishi::
+	./build_linux.sh ishi mep-ishi
+
 allhands::
 	./build_linux.sh allhands mep-all-hands
 
