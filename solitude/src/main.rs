@@ -8,7 +8,7 @@ use utils::menu::{*};
 
 mod rules;
 use std::env;
-use rules::{Klondike,ThreeDraw,OneDraw,Golf,Spider,OneSuit,TwoSuit,FourSuit,FreeCell,TriPeaks,Cruel, Pyramid};
+use rules::{Klondike,ThreeDraw,OneDraw,Golf,Spider,LittleSpider,OneSuit,TwoSuit,FourSuit,FreeCell,TriPeaks,Cruel, Pyramid, BakersDozen, Yukon};
 use std::ops::{Index};
 use tesserae::{Graphic,Tile,TileSet};
 use sdl2::pixels::Color;
@@ -19,7 +19,7 @@ use sdl2::Sdl;
 use sdl2::keyboard::Keycode;
 use sdl2::render::Canvas;
 use sdl2::rect::Rect;
-use sdl2::gfx::framerate::FPSManager;
+use utils::framerate::FPSManager;
 use std::io::Cursor;
 use rand::{thread_rng};
 use rand::seq::SliceRandom;
@@ -830,7 +830,7 @@ pub trait Rules {
     fn new_game(table: &mut Table);
 
     fn can_split_stack(stack : &Stack, position : usize, table: &Table) -> bool;
-    fn can_place_stack(stack : &Stack, cards: &[Card]) -> bool;
+    fn can_place_stack(stack : &Stack, cards: &[Card], table: &Table) -> bool;
     fn can_place_well(well : &Well, cards: &[Card]) -> bool;
     fn can_skim_well(well : &Well) -> bool;
     fn game_won(table: &Table) -> bool;
@@ -895,23 +895,25 @@ fn main_loop<RULES:Rules>(mut window:Window, sdl_context: &Sdl) -> (Option<Varia
     let mut grab_offset : (i32,i32) = (0,0);
     let wwh = RULES::table_size().1;
     let mut menu = MenuBar::new(RULES::table_size().0)
-                    .add(Menu::new("GAME",152,&texture_creator,&graphics_set.tile_set)
-                            .add(MenuItem::new("Klondike 1-Draw", 52, Keycode::Num1,&texture_creator,&graphics_set.tile_set))
-                            .add(MenuItem::new("Klondike 3-Draw", 53, Keycode::Num2,&texture_creator,&graphics_set.tile_set))
-                            .add(MenuItem::separator(136, &texture_creator,&graphics_set.tile_set))
-                            .add(MenuItem::new("Spider 1-Suit", 54, Keycode::Num3,&texture_creator,&graphics_set.tile_set))
-                            .add(MenuItem::new("Spider 2-Suit", 55, Keycode::Num4,&texture_creator,&graphics_set.tile_set))
-                            .add(MenuItem::new("Spider 4-Suit", 56, Keycode::Num5,&texture_creator,&graphics_set.tile_set))
-                            .add(MenuItem::separator(136, &texture_creator,&graphics_set.tile_set))
-                            .add(MenuItem::new("Pyramid 1-Draw", 352, Keycode::F1,&texture_creator,&graphics_set.tile_set))
-                            .add(MenuItem::new("Pyramid 3-Draw", 353, Keycode::F2,&texture_creator,&graphics_set.tile_set))
-                            .add(MenuItem::separator(136, &texture_creator,&graphics_set.tile_set))
+                    .add(Menu::new("GAME",136,&texture_creator,&graphics_set.tile_set)
+                            .add(MenuItem::submenu("Klondike", &texture_creator,&graphics_set.tile_set, Menu::new(" ", 80, &texture_creator,&graphics_set.tile_set)
+                              .add(MenuItem::new("1-Draw", 52, Keycode::Num1,&texture_creator,&graphics_set.tile_set))
+                              .add(MenuItem::new("3-Draw", 53, Keycode::Num2,&texture_creator,&graphics_set.tile_set))))
+                            .add(MenuItem::submenu("Spider", &texture_creator,&graphics_set.tile_set, Menu::new(" ", 80, &texture_creator,&graphics_set.tile_set)
+                              .add(MenuItem::new("1-Suit", 54, Keycode::Num3,&texture_creator,&graphics_set.tile_set))
+                              .add(MenuItem::new("2-Suit", 55, Keycode::Num4,&texture_creator,&graphics_set.tile_set))
+                              .add(MenuItem::new("4-Suit", 56, Keycode::Num5,&texture_creator,&graphics_set.tile_set))))
+                            .add(MenuItem::submenu("Pyramid", &texture_creator,&graphics_set.tile_set, Menu::new(" ", 80, &texture_creator,&graphics_set.tile_set)
+                              .add(MenuItem::new("1-Draw", 352, Keycode::F1,&texture_creator,&graphics_set.tile_set))
+                              .add(MenuItem::new("3-Draw", 353, Keycode::F2,&texture_creator,&graphics_set.tile_set))))
                             .add(MenuItem::new("Golf", 57, Keycode::Num6,&texture_creator,&graphics_set.tile_set))
-                            .add(MenuItem::new("TriPeaks", 58, Keycode::Num7,&texture_creator,&graphics_set.tile_set))
-                            .add(MenuItem::separator(136, &texture_creator,&graphics_set.tile_set))
+                            .add(MenuItem::new("TriPeaks", 58, Keycode::Num7,&texture_creator,&graphics_set.tile_set))                            
                             .add(MenuItem::new("FreeCell", 59, Keycode::Num8,&texture_creator,&graphics_set.tile_set))
                             .add(MenuItem::new("Cruel", 60, Keycode::Num9,&texture_creator,&graphics_set.tile_set))
-                            .add(MenuItem::separator(136, &texture_creator,&graphics_set.tile_set))
+                            .add(MenuItem::new("Yukon", 354, Keycode::F3,&texture_creator,&graphics_set.tile_set))
+                            .add(MenuItem::new("Baker's Dozen", 355, Keycode::F4,&texture_creator,&graphics_set.tile_set))
+                            .add(MenuItem::new("Little Spider", 356, Keycode::F5,&texture_creator,&graphics_set.tile_set))
+                            .add(MenuItem::separator(120, &texture_creator,&graphics_set.tile_set))
                             .add(MenuItem::new("Quit",363, Keycode::F12,&texture_creator,&graphics_set.tile_set)))
                     .add(Menu::new("ACTION",88,&texture_creator,&graphics_set.tile_set)
                             .add(MenuItem::new("Hint",9, Keycode::H,&texture_creator,&graphics_set.tile_set))
@@ -1000,6 +1002,15 @@ fn main_loop<RULES:Rules>(mut window:Window, sdl_context: &Sdl) -> (Option<Varia
                         Event::KeyDown { keycode: Some(Keycode::F2), ..} => {
                             return (Some(Variant::PyramidThree), canvas.into_window());
                         },
+                        Event::KeyDown { keycode: Some(Keycode::F3), ..} => {
+                            return (Some(Variant::Yukon), canvas.into_window());
+                        },
+                        Event::KeyDown { keycode: Some(Keycode::F4), ..} => {
+                            return (Some(Variant::BakersDozen), canvas.into_window());
+                        },
+                        Event::KeyDown { keycode: Some(Keycode::F5), ..} => {
+                            return (Some(Variant::LittleSpider), canvas.into_window());
+                        },
                         Event::KeyDown { keycode: Some(Keycode::F9), ..} => {
                             if micro_mode {
                                 micro_mode = false;
@@ -1072,7 +1083,7 @@ fn main_loop<RULES:Rules>(mut window:Window, sdl_context: &Sdl) -> (Option<Varia
                                         if origin != GameObject::Stack(idx) {
                                             let len = table.stacks[idx].cards.len();
                                             if len == 0 || pos == len -1 { 
-                                                if RULES::can_place_stack(&table.stacks[idx], &cards) {
+                                                if RULES::can_place_stack(&table.stacks[idx], &cards, &table) {
                                                     let l = cards.len();
                                                     table.animate_add_cards_to(GameObject::Stack(idx), &cards,(mx + grab_offset.0,my + grab_offset.1), false,Box::new(move |tbl : & mut Table| {
                                                         RULES::placed_in_stack(tbl, idx, l);
@@ -1138,7 +1149,10 @@ enum Variant {
     TriPeaks,
     FreeCell,
     PyramidOne,
-    PyramidThree
+    PyramidThree,
+    Yukon,
+    BakersDozen,
+    LittleSpider
 }
 fn choose(window : Window, sdl_context:&Sdl, variant : Variant) {
     if let (Some(v), w) = match variant {
@@ -1153,6 +1167,9 @@ fn choose(window : Window, sdl_context:&Sdl, variant : Variant) {
         Variant::FreeCell      => main_loop::<FreeCell>(window,sdl_context),
         Variant::PyramidOne    => main_loop::<Pyramid<OneDraw>>(window,sdl_context),
         Variant::PyramidThree  => main_loop::<Pyramid<ThreeDraw>>(window,sdl_context),
+        Variant::Yukon         => main_loop::<Yukon>(window,sdl_context),
+        Variant::BakersDozen   => main_loop::<BakersDozen>(window,sdl_context),
+        Variant::LittleSpider  => main_loop::<LittleSpider>(window,sdl_context),
     } {
         choose(w, sdl_context,v);
     }
@@ -1173,13 +1190,16 @@ fn main() {
         "klondike3" => choose(window,&sdl_context,Variant::KlondikeThree),
         "klondike1" => choose(window,&sdl_context,Variant::KlondikeOne),
         "golf"      => choose(window,&sdl_context,Variant::Golf),
+        "yukon"     => choose(window,&sdl_context,Variant::Yukon),
+        "bakers"    => choose(window,&sdl_context,Variant::BakersDozen),
         "tripeaks"  => choose(window,&sdl_context,Variant::TriPeaks),
         "spider1"   => choose(window,&sdl_context,Variant::SpiderOne),
         "spider2"   => choose(window,&sdl_context,Variant::SpiderTwo),
         "spider4"   => choose(window,&sdl_context,Variant::SpiderFour),
         "freecell"  => choose(window,&sdl_context,Variant::FreeCell),
         "cruel"     => choose(window,&sdl_context,Variant::Cruel),
-        _ => println!("Available games: klondike1, klondike3, spider1, spider2, spider4, pyramid1, pyramid3, cruel, golf, tripeaks, freecell")
+        "litspider" => choose(window,&sdl_context,Variant::LittleSpider),
+        _ => println!("Available games: klondike1, klondike3, yukon, bakers, litspider, spider1, spider2, spider4, pyramid1, pyramid3, cruel, golf, tripeaks, freecell")
     }
     //cards::main_loop::<Spider<OneSuit>>();
     

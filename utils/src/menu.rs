@@ -12,7 +12,8 @@ pub struct MenuItem<'r> {
     graphic: Graphic<Texture<'r>>,
     hl_graphic: Graphic<Texture<'r>>,
     keycode: Option<Keycode>,
-    k_graphic: Option<Graphic<Texture<'r>>>
+    k_graphic: Option<Graphic<Texture<'r>>>,
+    sub_menu: Option<Box<Menu<'r>>>
 }
 impl <'r>MenuItem<'r> {
     pub fn new<T>(title: &str, help_tile: usize, keycode: Keycode, texture_creator: &'r TextureCreator<T>, tile_set : &TileSet) -> Self {
@@ -28,7 +29,8 @@ impl <'r>MenuItem<'r> {
             graphic: g,
             hl_graphic: hg,
             keycode: Some(keycode),
-            k_graphic: Some(k_graphic)
+            k_graphic: Some(k_graphic),
+            sub_menu: None
         }
     }
     pub fn separator<T>(width:u32,  texture_creator: &'r TextureCreator<T>, tile_set : &TileSet) -> Self {
@@ -40,7 +42,25 @@ impl <'r>MenuItem<'r> {
             graphic: g,
             hl_graphic: hg,
             keycode: None,
-            k_graphic: None
+            k_graphic: None,
+            sub_menu: None
+        }
+    }
+    pub fn submenu<T>(title: &str, texture_creator: &'r TextureCreator<T>, tile_set : &TileSet, sub_menu: Menu<'r>) -> Self {
+        let mut g = Graphic::blank(title.len() as u32,1).textured(texture_creator);
+        g.draw_text(title, tile_set, 0, 0, Color::RGB(0,0,0), Color::RGBA(0,0,0,0));
+        g.update_texture(tile_set);
+        let mut hg = Graphic::blank(title.len() as u32,1).textured(texture_creator);
+        hg.draw_text(title, tile_set, 0, 0, Color::RGB(255,255,255), Color::RGBA(0,0,0,0));
+        hg.update_texture(tile_set);
+        let mut k_graphic = Graphic::solid(1,1,Tile{index:215,fg: Color::RGB(0,0,0), bg:Color::RGBA(0,0,0,0)}).textured(texture_creator);
+        k_graphic.update_texture(tile_set);
+        MenuItem {
+            graphic: g,
+            hl_graphic: hg,
+            keycode: None,
+            k_graphic: Some(k_graphic),
+            sub_menu: Some(Box::new(sub_menu))
         }
     }
 }
@@ -82,6 +102,14 @@ impl <'r> Menu<'r> {
     pub fn add(mut self, item: MenuItem<'r>) -> Self {
         self.items.push(item);
         self
+    }
+    pub fn selected_keycode(&self) -> Option<Keycode> {
+        let i = self.current?;
+        if let Some(sm) = &self.items[i].sub_menu {
+            sm.selected_keycode()
+        } else {
+            self.items[i].keycode
+        }
     }
 }
 
@@ -139,34 +167,41 @@ impl <'r> MenuBar<'r> {
             x += self.menus[i].graphic.width() as i32 + 16
         }
         if let Some(j) = self.current {
+            
             let mut x = 0;
             for i in 0..j {
                 x += self.menus[i].graphic.width() as i32 + 16
             }
-            let h = self.menus[j].items.len() as u32 * 16;
-            canvas.set_draw_color(Color::RGB(0,0,0));
-            canvas.fill_rect(Rect::new(x,16,self.menus[j].width+2,h+2)).unwrap();
-            canvas.set_draw_color(Color::RGB(176,179,172));
-            canvas.fill_rect(Rect::new(x+1,17,self.menus[j].width,h)).unwrap();
-            let mut y = 4 + 17;
-            for k in 0..self.menus[j].items.len() {
-                match self.menus[j].current {
-                    Some(l) if k == l => {
-                        if self.menus[j].items[k].keycode.is_some() {
-                            canvas.set_draw_color(Color::RGB(32,74,135));
-                            canvas.fill_rect(Rect::new(x+1,y-4,self.menus[j].width,16)).unwrap();
-                        }
-                        self.menus[j].items[k].hl_graphic.draw(canvas,(x+8,y));
-                        y += 16;
-                    },
-                    _ => {
-                        self.menus[j].items[k].graphic.draw(canvas,(x+8,y));
-                        y += 16;
+            self.draw_menu(canvas, &self.menus[j], x,16);
+        }
+    }
+    fn draw_menu<T: RenderTarget>(&self, canvas : &mut Canvas<T>, menu : &Menu<'r>, x : i32, old_y: i32) {
+        let h = menu.items.len() as u32 * 16;
+        canvas.set_draw_color(Color::RGB(0,0,0));
+        canvas.fill_rect(Rect::new(x,old_y,menu.width+2,h+2)).unwrap();
+        canvas.set_draw_color(Color::RGB(176,179,172));
+        canvas.fill_rect(Rect::new(x+1,old_y+1,menu.width,h)).unwrap();
+        let mut y = old_y+5;
+        for k in 0..menu.items.len() {
+            match menu.current {
+                Some(l) if k == l => {
+                    if menu.items[k].keycode.is_some() || menu.items[k].sub_menu.is_some() {
+                        canvas.set_draw_color(Color::RGB(32,74,135));
+                        canvas.fill_rect(Rect::new(x+1,y-4,menu.width,16)).unwrap();
                     }
+                    if let Some(bm) = &menu.items[k].sub_menu {
+                        self.draw_menu(canvas, &bm, x+menu.width as i32, y-5);
+                    }
+                    menu.items[k].hl_graphic.draw(canvas,(x+8,y));
+                    y += 16;
+                },
+                _ => {
+                    menu.items[k].graphic.draw(canvas,(x+8,y));
+                    y += 16;
                 }
-                if let Some(kg) = &self.menus[j].items[k].k_graphic {
-                    kg.draw(canvas, (x + self.menus[j].width as i32 - 16,y-16));
-                }
+            }
+            if let Some(kg) = &menu.items[k].k_graphic {
+                kg.draw(canvas, (x + menu.width as i32 - 16,y-16));
             }
         }
     }
@@ -184,6 +219,34 @@ impl <'r> MenuBar<'r> {
         self.current=Some(i);
         true
     } 
+    fn mouse_on_menu( menu : &mut Menu<'r>, xx: i32, yy : i32, x: i32, y: i32) -> bool {
+        let h = menu.items.len() as i32 * 16;
+        if xx >= x && xx <= x + menu.width as i32 {
+            if yy >= y && yy < h + y {
+                let i = (yy - y -1) / 16;
+                menu.current = Some(i as usize);
+                if let Some(sm) = &mut menu.items[i as usize].sub_menu { 
+                    sm.current = None;
+                }
+                true 
+            } else { 
+                menu.current = None;
+                true
+            }
+        } else {
+            if let Some(i) = menu.current {
+                if let Some(sm) = &mut menu.items[i].sub_menu {
+                    Self::mouse_on_menu(sm, xx, yy, x+menu.width as i32, y+ (i as i32)*16)
+                } else {
+                    menu.current = None;
+                    true
+                }
+            } else {
+                menu.current = None;
+                true
+            }
+        }
+    }
     pub fn enable(&mut self) {
         self.enabled = true;
     }
@@ -204,18 +267,16 @@ impl <'r> MenuBar<'r> {
             },
             Event::MouseButtonUp { timestamp, window_id, ..} if self.current.is_some() => {
                 if let Some(j) = self.current {
-                    if let Some(k) = self.menus[j].current {
-                        if self.menus[j].items[k].keycode.is_some() { 
-                            let e = Event::KeyDown{
-                                keycode: self.menus[j].items[k].keycode, 
-                                keymod: Mod::empty(), 
-                                scancode: None, 
-                                repeat:false, 
-                                timestamp:timestamp,
-                                window_id:window_id
-                            };
-                            event_subsystem.push_event(e).unwrap();
-                        }
+                    if let Some(k) = self.menus[j].selected_keycode() {
+                        let e = Event::KeyDown{
+                            keycode: Some(k), 
+                            keymod: Mod::empty(), 
+                            scancode: None, 
+                            repeat:false, 
+                            timestamp:timestamp,
+                            window_id:window_id
+                        };
+                        event_subsystem.push_event(e).unwrap();
                         self.menus[j].current = None
                     } 
                     self.current = None;
@@ -226,25 +287,12 @@ impl <'r> MenuBar<'r> {
                 if yy < 17 {
                     return self.mouse_on_bar(xx);
                 }
-                if let Some(j) = self.current {
+                if let Some(j) = self.current {                    
                     let mut x = 0;
                     for i in 0..j {
                         x += self.menus[i].graphic.width() as i32 + 16
                     }
-                    let h = self.menus[j].items.len() as i32 * 16;
-                    if xx >= x && xx <= x + self.menus[j].width as i32 {
-                        if yy < h + 17 {
-                            let i = (yy - 17) / 16;
-                            self.menus[j].current = Some(i as usize);
-                            true 
-                        } else { 
-                            self.menus[j].current = None;
-                            true
-                        }
-                    } else {
-                        self.menus[j].current = None;
-                        true
-                    }
+                    Self::mouse_on_menu(&mut self.menus[j], xx, yy, x, 16)
                 } else { false }
             },
             _ => false

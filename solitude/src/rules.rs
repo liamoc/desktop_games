@@ -11,7 +11,175 @@ fn refresh_stacks(table: &mut Table) {
         }
     }
 }
+pub struct BakersDozen {}
+impl BakersDozen {
+    fn badness(cards : &[Card]) -> i32 {
+        let mut badness = 0;
+        for i in 0..cards.len()-1 {
+            let v = cards[i].value;
+            badness += cards.iter().skip(i).filter(|x| x.value > v).count() as i32;
+        }
+        badness
+    }
+    fn badness_of(table:&Table, obj: GameObject) -> i32 {
+        match obj {
+            GameObject::Stack(i) => Self::badness(&table.stack(i).cards),
+            _ => 0,
+        }
+    }
+    fn badness_add_of(table:&Table, obj: GameObject, card: Card) -> i32 {
+        match obj {
+            GameObject::Stack(i) => Self::badness_add(&table.stack(i).cards, card),
+            _ => 0,
+        }
+    }
+    fn badness_sub_of(table:&Table, obj: GameObject) -> i32 {
+        match obj {
+            GameObject::Stack(i) => Self::badness_sub(&table.stack(i).cards),
+            _ => 0,
+        }
+    }
+    fn badness_delta(table:&Table, source : GameObject, target: GameObject, card : Card ) -> i32  {
+        let src_badness_before = Self::badness_of(table, source);
+        let target_badness_before = Self::badness_of(table, target);
+        let src_badness_after = Self::badness_sub_of(table, source);
+        let target_badness_after = Self::badness_add_of(table, target, card);
+        src_badness_after + target_badness_after- src_badness_before - target_badness_before
+    }
+    fn badness_sub(cards : &[Card]) -> i32 {
+        Self::badness(&cards[0..=cards.len()-1])
+    }
+    fn badness_add(cards : &[Card], card : Card) -> i32 {
+        let cards_2 : Vec<Card> = cards.iter().chain(vec![card].iter()).map(|c| *c).collect();
+        Self::badness(&cards_2)
+    }
+    fn best_location_for_card(table:&Table, card : Card, other_than: GameObject) -> Option<GameObject> {
+        for i in 0..=3 {
+            if other_than != GameObject::Well(i) {
+                if Self::can_place_well(table.well(i), &vec![card]) {
+                    return Some(GameObject::Well(i));
+                }
+            }
+        }
+        let mut options : Vec<usize> = Vec::new();
+        for i in 0..13 {
+            if other_than != GameObject::Stack(i) {
+                if Self::can_place_stack(table.stack(i), &vec![card], table) {
+                    options.push(i );
+                }
+            }
+        }
+        options.sort_by(|a , b| Self::badness_add(&table.stack(*a).cards, card).cmp(&Self::badness_add(&table.stack(*b).cards, card)));
+        options.first().map(|x| GameObject::Stack(*x))   
+    }
+}
+impl Rules for BakersDozen {
+    fn table_size() -> (u32,u32) { (338,320) }
+    fn new_game(table: &mut Table) {
+        let cards : Vec<Card> = Card::deck().into_iter().filter(|c| c.value < 13).collect();
+        let mut kings = vec![Card {suit: Suit::Hearts, value: 13},Card {suit: Suit::Diamonds, value: 13},Card {suit: Suit::Clubs, value: 13},Card {suit: Suit::Spades, value: 13} ];
+        let empty_vec = Vec::new();
+        table.add_well((288,32), 0,&empty_vec);
+        table.add_well((288,32+48),0, &empty_vec);
+        table.add_well((288,32+48*2),0, &empty_vec);
+        table.add_well((288,32+48*3),0, &empty_vec);
+        let mut start = 0;
+        let mut stacks_d = Vec::new();
+        let mut kings_pos_vec : Vec<usize> = (1..=13).collect();
+        kings_pos_vec.shuffle(&mut thread_rng());
+        
+        let kings_pos = &kings_pos_vec[0..4];
+        for i in 1..=13 {
+            let mut v = Vec::new();
+            if kings_pos.contains(&i) {
+                v.push(kings.pop().unwrap());
+            }
+            while v.len() < 4 {
+                v.push(cards[start]);
+                start += 1;
+            }
+            stacks_d.push(v);
+        }
+        for i in 1..=13 {
+            table.add_stack((32 * ((i - 1) % 7) as i32 + 32 + (if i > 7 { 16 } else { 0}),32+ ((i as i32 -1)/ 7) * 136), &stacks_d[i-1] , 0);
+        }
+    }
+    fn can_split_stack(stack: &Stack, position: usize, _ : &Table) -> bool {
+        position < stack.cards.len() && position >= stack.cards.len() - 1       
+    }
+    fn can_skim_well(well: &Well) -> bool {
+        well.cards.len() > 0
+    }
+    fn can_place_stack(stack: &Stack, cards: &[Card], _ : &Table) -> bool {        
+        if let Some(c) = stack.cards.last () {
+            cards[0].value + 1 == c.value
+        } else {
+            false
+        }
+    }
+    fn can_place_well(well: &Well, cards: &[Card]) -> bool { 
+        if well.cards.len() > 0 {
+            cards.len() == 1 && cards[0].suit == well.cards[0].suit && cards[0].value == well.cards.len() as u8 + 1
+        } else { 
+            cards.len() == 1 && cards[0].value == 1
+        }
+        
+    }
+    fn placed_in_stack(_table: &mut Table, _stack_id: usize, _cards: usize) {
+    }
+    fn placed_in_well(_table: &mut Table, _well_id: usize, _cards: usize) {
+    }
+    fn deal_from_deck(_table: &mut Table, _deck_id: usize) {
+    }
+    fn stack_clicked(table: &mut Table, stack_id: usize, position: usize) {
+        let card = &table.stack(stack_id).cards[position];       
+        if let Some(loc) = Self::best_location_for_card(table, *card, GameObject::Stack(stack_id)) {                        
+            table.shift_then(GameObject::Stack(stack_id), loc,1,Box::new(move |tbl| {
+                match loc {
+                    GameObject::Stack(i) => Self::placed_in_stack(tbl, i, 1),
+                    GameObject::Well(i) => Self::placed_in_well(tbl, i, 1),
+                    GameObject::Deck(_) => {},
+                };
+                tbl.end_move();
+            }));
+        }
+    }
+    fn well_clicked(_table: &mut Table, _well_id: usize) {
+    }
+    
+    fn hint(table: &mut Table) {
+        let mut moves: Vec<(GameObject, GameObject, Card)> = Vec::new();
+        for i in 0..13 {
+            if let Some(c) = table.stack(i).cards.last() {
+                if let Some(dest) = Self::best_location_for_card(table, *c, GameObject::Stack(i)) {                    
+                    moves.push((GameObject::Stack(i),dest,*c));
+                }
+            }
+        }
+        moves.sort_by(|(s1,d1, c1), (s2,d2, c2)| Self::badness_delta(table, *s1, *d1,*c1).cmp(&Self::badness_delta(table, *s2,*d2,*c2)) );
+        if let Some((s,d,_)) = moves.first() {
+            let dd = *d;
+            let and_then : Box<dyn FnOnce(&mut Table)> = Box::new(move |tbl| {
+                match dd {
+                    GameObject::Well(w) => tbl.animate_highlight_well(w, (0,200,100)),
+                    GameObject::Stack(w) => tbl.animate_highlight_stack(w, tbl.stack(w).cards.len()-1.min(tbl.stack(w).cards.len()), (0,200,100)),
+                    _ => {}
+                } 
+                
+            } );
+            match *s {
+                GameObject::Well(w) => table.animate_highlight_well_then(w, (100,0,200), and_then),
+                GameObject::Stack(s) => { let pos = table.stack(s).cards.len() - 1; table.animate_highlight_stack_then(s, pos, (100,0,200), and_then)},
+                _ => {}
+            }
 
+        } else {
+        }
+    }
+    fn game_won(table: &Table) -> bool {
+        table.stacks().iter().all(|s| s.cards.len() == 0)
+    }
+}
 pub struct Cruel {}
 impl Cruel {
     fn end_redeal(table:&mut Table) {        
@@ -75,7 +243,7 @@ impl Rules for Cruel {
     }
     // no stacks in cruel
     fn can_split_stack(_: &Stack, _: usize, _: &Table) -> bool { false }
-    fn can_place_stack(_: &Stack, _: &[Card]) -> bool { false }
+    fn can_place_stack(_: &Stack, _: &[Card], _ : &Table) -> bool { false }
     fn stack_clicked(_: &mut Table, _: usize, _: usize) { }
     fn placed_in_stack(_: &mut Table, _: usize, _: usize) { }
 
@@ -173,7 +341,7 @@ impl FreeCell {
         let mut options : Vec<usize> = Vec::new();
         for i in 0..8 {
             if other_than != GameObject::Stack(i) {
-                if Self::can_place_stack(table.stack(i), cards) {
+                if Self::can_place_stack(table.stack(i), cards, table) {
                     options.push(i);
                 }
             }
@@ -237,7 +405,7 @@ impl Rules for FreeCell {
             table.add_stack((34*i,76), &stacks_cards[i as usize-1], 0);
         }
     }
-    fn can_place_stack(stack: &Stack, cards: &[Card]) -> bool {        
+    fn can_place_stack(stack: &Stack, cards: &[Card], _ : &Table) -> bool {        
         if let Some(c) = stack.cards.last () {
             cards[0].value + 1 == c.value && match cards[0].suit {
                 Suit::Diamonds => c.suit == Suit::Clubs || c.suit == Suit::Spades,
@@ -328,7 +496,7 @@ impl Rules for FreeCell {
         for i in 0..4 {
             if let Some(c) = tbl.well(i).cards.last() {
                 for j in 0..8 {
-                    if Self::can_place_stack(tbl.stack(j), &vec![*c][..]) {
+                    if Self::can_place_stack(tbl.stack(j), &vec![*c][..], tbl) {
                         moves.push((Self::nongolden_length(&tbl.stack(j).cards), (i,j)));                        
                     }
                 }
@@ -472,7 +640,7 @@ impl Rules for TriPeaks {
     fn can_split_stack(stack: &Stack, pos: usize, _tbl: &Table) -> bool {
         pos < stack.cards.len() && pos >= stack.hidden_point
     }
-    fn can_place_stack(_: &Stack, _: &[Card]) -> bool { false }
+    fn can_place_stack(_: &Stack, _: &[Card], _ : &Table) -> bool { false }
     fn can_place_well(w: &Well, cs: &[Card]) -> bool { Golf::can_place_well(w, cs) }
     fn can_skim_well(_: &Well) -> bool { false }
     fn game_won(table: &Table) -> bool { Golf::game_won(table) }  
@@ -511,7 +679,7 @@ impl Rules for Golf {
         }
     }
     fn can_split_stack(stack: &Stack, s: usize, _ : &Table) -> bool { stack.cards.len() > 0 && s == stack.cards.len() - 1 }
-    fn can_place_stack(_: &Stack, _: &[Card]) -> bool { false }
+    fn can_place_stack(_: &Stack, _: &[Card], _ : &Table) -> bool { false }
     fn can_place_well(w: &Well, cs: &[Card]) -> bool {
         if let [t] = cs {
             if let Some(c) = w.cards.last() { 
@@ -650,7 +818,7 @@ impl <V:SpiderVariant>Rules for Spider<V> {
             let cards = &table.stack(stack_id).cards[position..];
             for i in 0..10 {
                 if i != stack_id {
-                    if Self::can_place_stack(table.stack(i), cards) {
+                    if Self::can_place_stack(table.stack(i), cards, table) {
                         let mut hypothetical : Vec<Card> = table.stack(i).cards.iter().skip(table.stack(i).hidden_point).cloned().collect();
                         hypothetical.extend(cards);
                         let g1 = Self::longest_golden_run(&hypothetical);
@@ -691,7 +859,7 @@ impl <V:SpiderVariant>Rules for Spider<V> {
                 let cards = &table.stack(src).cards[pos..];
                 for i in 0..10 {
                     if i != src {
-                        if Self::can_place_stack(table.stack(i), cards) {
+                        if Self::can_place_stack(table.stack(i), cards, table) {
                             let mut hypothetical : Vec<Card> = table.stack(i).cards.iter().skip(table.stack(i).hidden_point).cloned().collect();
                             hypothetical.extend(cards);
                             let g1 = Self::longest_golden_run(&hypothetical);
@@ -735,7 +903,7 @@ impl <V:SpiderVariant>Rules for Spider<V> {
     fn placed_in_well(table: &mut Table, _well_id : usize, _cards: usize)  {
         refresh_stacks(table);
     }
-    fn can_place_stack(stack : &Stack, cards: &[Card]) -> bool {
+    fn can_place_stack(stack : &Stack, cards: &[Card], _ : &Table) -> bool {
         if let Some(n) = cards.first() {
             if let Some(p) = stack.cards.last() {
                 p.value == n.value + 1
@@ -754,6 +922,149 @@ impl <V:SpiderVariant>Rules for Spider<V> {
 pub trait DrawSize {
     fn size_of_draw() -> usize;
 }
+pub struct LittleSpider {  }
+impl LittleSpider {
+    fn best_location_for_card(table:&Table, card : Card, other_than: GameObject) -> Option<GameObject> {        
+        for i in 0..4 {
+            if Self::can_place_well(table.well(i), &vec![card]) {
+                return Some(GameObject::Well(i));
+            }
+        }
+        let mut moves : Vec<(usize,  i32)> = Vec::new();
+        for i in 0..8 {
+            if other_than != GameObject::Stack(i)  {
+                if Self::can_place_stack(table.stack(i), &vec![card], table) {
+                    moves.push((i,  -(table.stack(i).cards.len() as i32)));
+                }
+            }
+        }
+        moves.sort_by(|(_,x1),(_,x2)| { x2.cmp(x1) });
+        if let Some((m,_)) = moves.first() {
+            return Some (GameObject::Stack(*m));
+        }
+        return None;
+    }
+}
+
+impl Rules for LittleSpider {
+    fn table_size() -> (u32,u32) { (320,320) }
+    fn new_game(table: &mut Table) {
+        let mut specials = vec![Card{value: 1, suit: Suit::Diamonds}, Card{value:1, suit:Suit::Hearts}, Card{value:13, suit:Suit::Clubs}, Card{value:13, suit:Suit::Spades}];
+        specials.reverse();
+        let cards : Vec<Card> = Card::deck().into_iter().filter(|c| !specials.contains(&c)).collect();
+        
+        
+        let (deck_cards,rest) = cards.split_at(40);
+        table.add_deck((32,32), deck_cards);
+        table.add_well((96,32), 0,&vec![specials.pop().unwrap()]);
+        table.add_well((128,32), 0,&vec![specials.pop().unwrap()]);
+        table.add_well((160,32), 0,&vec![specials.pop().unwrap()]);
+        table.add_well((192,32), 0,&vec![specials.pop().unwrap()]);
+        let mut stacks_cards : [Vec<Card>;8] 
+            = [Vec::new(),Vec::new(),Vec::new(),Vec::new(),Vec::new(),Vec::new(),Vec::new(),Vec::new()];
+        let mut idx = 0;
+        for i in rest {
+            stacks_cards[idx].push(*i);
+            idx = idx + 1
+        }
+        for i in 1..=8 {
+            table.add_stack((32*i,76), &stacks_cards[i as usize-1], stacks_cards[i as usize-1].len()-1);
+        }
+    }
+    fn game_won(table: &Table) -> bool {
+        table.stacks().iter().all(|s| s.cards.len() == 0) && table.deck(0).cards.len() == 0
+    }
+    fn stack_clicked(table: &mut Table, stack_id: usize, position: usize) {
+        let cards = &table.stack(stack_id).cards[position..];
+        let l = cards.len();        
+        if l > 1 { return; };
+        if let Some(loc) = Self::best_location_for_card(table, cards[0], GameObject::Stack(stack_id)) {                        
+            table.shift_then(GameObject::Stack(stack_id), loc,l,Box::new(move |tbl| {
+                match loc {
+                    GameObject::Stack(i) => Self::placed_in_stack(tbl, i, l),
+                    GameObject::Well(i) => Self::placed_in_well(tbl, i, l),
+                    GameObject::Deck(_) => {},
+                };
+                tbl.end_move();
+            }));
+        }
+        
+    }
+    fn well_clicked(_: &mut Table, _: usize) {}
+    fn hint(table: &mut Table) {
+        let mut moves: Vec<(GameObject, GameObject, usize)> = Vec::new();
+        for i in 0..7 {
+            if let Some(c) = table.stack(i).cards.last() {
+                if let Some(l) = Self::best_location_for_card(table,*c, GameObject::Stack(i)) {
+                    moves.push((GameObject::Stack(i),l,table.stack(i).cards.len()))
+                }
+            }
+        }
+        moves.sort_by(|(_s1,d1,c1), (_s2,d2,c2)| match (d1,d2) {
+            (GameObject::Well(_),_) => Ordering::Less,
+            (_,GameObject::Well(_)) => Ordering::Greater,
+            (_,_) => c2.cmp(c1)
+        });
+        if let Some((s,d,_c)) = moves.first() {
+            let dd = *d;
+            let and_then : Box<dyn FnOnce(&mut Table)> = Box::new(move |tbl| {
+                match dd {
+                    GameObject::Well(w) => tbl.animate_highlight_well(w, (0,200,100)),
+                    GameObject::Stack(w) => tbl.animate_highlight_stack(w, tbl.stack(w).cards.len()-1.min(tbl.stack(w).cards.len()), (0,200,100)),
+                    _ => {}
+                } 
+                
+            } );
+            match *s {
+                GameObject::Well(w) => table.animate_highlight_well_then(w, (100,0,200), and_then),
+                GameObject::Stack(s) => { let pos = table.stack(s).cards.len() - 1; table.animate_highlight_stack_then(s, pos, (100,0,200), and_then)},
+                _ => {}
+            }
+
+        } else {
+            table.animate_highlight_deck(0, (200,68,25));
+        }
+    }
+    fn deal_from_deck(table: &mut Table, deck_id: usize) {
+        let mut s = 0;
+        while let Some(_) = table.deck(deck_id).cards.last() {
+            table.shift(GameObject::Deck(deck_id), GameObject::Stack(s),1);
+            s += 1;
+            if s == 8 { break };
+        }
+    }
+    fn placed_in_stack(_table: &mut Table, _stack_id : usize, _cards: usize)  {
+    }
+    fn placed_in_well(_table: &mut Table, _well_id : usize, _cards: usize)  {
+    }
+    fn can_place_stack(stack : &Stack, cards: &[Card], table : &Table) -> bool {
+        if table.deck(0).cards.len() != 0 {
+            return false
+        }
+        if let Some(p) = stack.cards.last() {
+            p.value == cards[0].value + 1 || p.value + 1 == cards[0].value
+            || p.value == 1 && cards[0].value == 13 ||  p.value == 13 && cards[0].value == 1
+        } else {
+            false
+        }
+    }
+    fn can_place_well(well : &Well, cards: &[Card]) -> bool {
+        if cards.len() == 1 && well.cards.last().is_some() {
+            let wc = well.cards.last().unwrap();
+            if cards[0].suit != wc.suit { return false } 
+            if cards[0].suit == Suit::Hearts || cards[0].suit == Suit::Diamonds {
+                cards[0].value == wc.value + 1
+            } else {
+                wc.value == cards[0].value + 1
+            }
+        } else { false }
+    }
+    fn can_split_stack(stack : &Stack, position: usize, _ : &Table) -> bool {
+        stack.cards.len() > 0 && position == stack.cards.len() - 1
+    }
+    fn can_skim_well(_well: &Well) -> bool { false }
+}
+
 
 pub struct OneDraw {}
 pub struct ThreeDraw {}
@@ -845,7 +1156,7 @@ impl <V:DrawSize> Rules for Pyramid<V> {
         table.add_well((384-32-32,228), 0,&empty_vec);
     }
     fn can_split_stack(stack: &Stack, pos: usize, tbl: &Table) -> bool { stack.cards.len() > pos && Self::unobstructed(tbl, stack.id) }
-    fn can_place_stack(_: &Stack, _: &[Card]) -> bool { false }
+    fn can_place_stack(_: &Stack, _: &[Card], _: &Table) -> bool { false }
     fn can_place_well(_: &Well, _: &[Card]) -> bool { false }
     fn can_skim_well(w: &Well) -> bool { w.cards.len() > 0 && w.id == 0 }
     fn game_won(table: &Table) -> bool { table.well(1).cards.len() + table.well(0).cards.len() + table.deck(0).cards.len() == 52 }
@@ -897,6 +1208,168 @@ impl <V:DrawSize> Rules for Pyramid<V> {
         table.animate_highlight_deck(0, (200,0,100));
      }
 }
+pub struct Yukon{}
+impl Yukon {}
+
+impl Yukon {
+    fn best_location_for_stack(table:&Table, cards: &[Card], other_than: GameObject) -> Option<GameObject> {
+        let mut options : Vec<usize> = Vec::new();
+        for i in 0..7 {
+            if other_than != GameObject::Stack(i) {
+                if Self::can_place_stack(table.stack(i), cards, table) {
+                    options.push(i);
+                }
+            }
+        }
+        options.sort_by(|a , b| (table.stack(*b).cards.len() - table.stack(*b).hidden_point).cmp(&(table.stack(*a).cards.len() - table.stack(*a).hidden_point)) );
+        options.first().map(|x| GameObject::Stack(*x))
+    }
+    fn best_location_for(table:&Table, cards : &[Card], other_than: GameObject) -> Option<GameObject> {
+        if cards.len() == 1 { 
+            Self::best_location_for_card(table, cards[0], other_than)
+        } else {
+            Self::best_location_for_stack(table, cards, other_than)
+        }
+    }
+    fn best_location_for_card(table:&Table, card : Card, other_than: GameObject) -> Option<GameObject> {
+        for i in 0..=3 {
+            if other_than != GameObject::Well(i) {
+                if Self::can_place_well(table.well(i), &vec![card]) {
+                    return Some(GameObject::Well(i));
+                }
+            }
+        }
+        Self::best_location_for_stack(table, &vec![card], other_than)        
+    }
+}
+impl Rules for Yukon {
+    fn table_size() -> (u32,u32) { (288,320) }
+    fn new_game(table: &mut Table) {
+        let cards = Card::deck();
+        let empty_vec = Vec::new();
+        table.add_well((32,32), 0,&empty_vec);
+        table.add_well((96,32),0, &empty_vec);
+        table.add_well((160,32),0, &empty_vec);
+        table.add_well((224,32),0, &empty_vec);
+        let mut start = 0;
+        for i in 1..=7 {
+            let m = (i - 1 ) + if i == 1 { 1 } else { 5};
+            table.add_stack((32 * i as i32,76), &cards[start..start+m] , i-1);
+            start += m;
+        }
+    }
+    fn can_split_stack(stack: &Stack, position: usize, _ : &Table) -> bool {
+        position < stack.cards.len() && position >= stack.hidden_point        
+    }
+    fn can_skim_well(well: &Well) -> bool {
+        well.cards.len() > 0
+    }
+    fn can_place_stack(stack: &Stack, cards: &[Card], _tbl: &Table) -> bool {        
+        if let Some(c) = stack.cards.last () {
+            cards[0].value + 1 == c.value && match cards[0].suit {
+                Suit::Diamonds => c.suit == Suit::Clubs || c.suit == Suit::Spades,
+                Suit::Hearts   => c.suit == Suit::Clubs || c.suit == Suit::Spades,
+                Suit::Clubs    => c.suit == Suit::Diamonds || c.suit == Suit::Hearts,
+                Suit::Spades   => c.suit == Suit::Diamonds || c.suit == Suit::Hearts,
+            }
+        } else {
+            cards[0].value == 13
+        }
+    }
+    fn can_place_well(well: &Well, cards: &[Card]) -> bool { 
+        if well.cards.len() > 0 {
+            cards.len() == 1 && cards[0].suit == well.cards[0].suit && cards[0].value == well.cards.len() as u8 + 1
+        } else { 
+            cards.len() == 1 && cards[0].value == 1
+         }
+        
+    }
+    fn placed_in_stack(table: &mut Table, _stack_id: usize, _cards: usize) {
+        refresh_stacks(table);
+    }
+    fn placed_in_well(table: &mut Table, _well_id: usize, _cards: usize) {
+        refresh_stacks(table);
+    }
+    fn deal_from_deck(_table: &mut Table, _deck_id: usize) {
+    }
+    fn stack_clicked(table: &mut Table, stack_id: usize, position: usize) {
+        let cards = &table.stack(stack_id).cards[position..];
+        let l = cards.len();        
+        if let Some(loc) = Self::best_location_for(table, cards, GameObject::Stack(stack_id)) {                        
+            table.shift_then(GameObject::Stack(stack_id), loc,l,Box::new(move |tbl| {
+                match loc {
+                    GameObject::Stack(i) => Self::placed_in_stack(tbl, i, l),
+                    GameObject::Well(i) => Self::placed_in_well(tbl, i, l),
+                    GameObject::Deck(_) => {},
+                };
+                tbl.end_move();
+            }));
+        }
+    }
+    fn well_clicked(table: &mut Table, well_id: usize) {
+        if let Some(card) = table.well(well_id).cards.last() {
+            if let Some(loc) = Self::best_location_for_card(table, *card, GameObject::Well(well_id)) {
+                table.shift_then(GameObject::Well(well_id), loc,1,Box::new(move |tbl| {
+                    match loc {
+                        GameObject::Stack(i) => Self::placed_in_stack(tbl, i, 1),
+                        GameObject::Well(i) => Self::placed_in_well(tbl, i, 1),
+                        GameObject::Deck(_) => {},
+                    };
+                    tbl.end_move();
+                }));
+            }
+        }
+    }
+    
+    fn hint(table: &mut Table) {
+        let mut moves: Vec<(GameObject, GameObject, usize)> = Vec::new();
+        for i in 0..7 {
+            if let Some(_) = table.stack(i).cards.last() {
+                for b in table.stack(i).hidden_point..table.stack(i).cards.len() {
+                    let cards = &table.stack(i).cards[b..];
+                    if let Some(l) = Self::best_location_for(table,cards, GameObject::Stack(i)) {
+                        moves.push((GameObject::Stack(i),l,cards.len()))
+                    }
+                }
+            }
+        }
+        moves.sort_by(|(s1,d1,c1), (s2,d2,c2)| match (d1,d2) {
+            (GameObject::Well(_),_) => Ordering::Less,
+            (_,GameObject::Well(_)) => Ordering::Greater,
+            (_,_) => match(s1,s2) {
+                // TODO: This doesn't try to expose cards that would be addable to wells..
+                (GameObject::Stack(src1), GameObject::Stack(src2)) => {
+                        let b1 = table.stack(*src1).cards.len() - *c1 <= table.stack(*src1).hidden_point;
+                        let b2 = table.stack(*src2).cards.len() - *c2 <= table.stack(*src2).hidden_point;
+                        if b1 && !b2 { Ordering::Less }
+                        else if b2 && !b1 { Ordering::Greater } else {
+                        table.stack(*src2).hidden_point.cmp( &table.stack(*src1).hidden_point) 
+                        }
+                    },
+                (_,_) => Ordering::Equal
+            }
+        });
+        if let Some((s,d,c)) = moves.first() {
+            let dd = *d;
+            let and_then : Box<dyn FnOnce(&mut Table)> = Box::new(move |tbl| {
+                match dd {
+                    GameObject::Well(w) => tbl.animate_highlight_well(w, (0,200,100)),
+                    GameObject::Stack(w) => tbl.animate_highlight_stack(w, tbl.stack(w).cards.len()-1.min(tbl.stack(w).cards.len()), (0,200,100)),
+                    _ => {}
+                } 
+                
+            } );
+            match *s {
+                GameObject::Well(w) => table.animate_highlight_well_then(w, (100,0,200), and_then),
+                GameObject::Stack(s) => { let pos = table.stack(s).cards.len() - *c; table.animate_highlight_stack_then(s, pos, (100,0,200), and_then)},
+                _ => {}
+            }
+        }
+    }
+    fn game_won(table: &Table) -> bool {
+        table.stacks().iter().all(|s| s.cards.len() == 0)
+    }
+}
 pub struct Klondike<V: DrawSize> {
     _dummy: V
 }
@@ -905,7 +1378,7 @@ impl <V:DrawSize>Klondike<V> {
         let mut options : Vec<usize> = Vec::new();
         for i in 0..7 {
             if other_than != GameObject::Stack(i) {
-                if Self::can_place_stack(table.stack(i), cards) {
+                if Self::can_place_stack(table.stack(i), cards, table) {
                     options.push(i);
                 }
             }
@@ -931,7 +1404,6 @@ impl <V:DrawSize>Klondike<V> {
         Self::best_location_for_stack(table, &vec![card], other_than)        
     }
 }
-
 impl <V:DrawSize> Rules for Klondike<V> {
     fn table_size() -> (u32,u32) { (288,320) }
     fn new_game(table: &mut Table) {
@@ -957,7 +1429,7 @@ impl <V:DrawSize> Rules for Klondike<V> {
     fn can_skim_well(well: &Well) -> bool {
         well.cards.len() > 0
     }
-    fn can_place_stack(stack: &Stack, cards: &[Card]) -> bool {        
+    fn can_place_stack(stack: &Stack, cards: &[Card], _tbl: &Table) -> bool {        
         if let Some(c) = stack.cards.last () {
             cards[0].value + 1 == c.value && match cards[0].suit {
                 Suit::Diamonds => c.suit == Suit::Clubs || c.suit == Suit::Spades,

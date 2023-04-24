@@ -6,7 +6,7 @@ use rand::Rng;
 use tesserae::{*};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
-use sdl2::gfx::framerate::FPSManager;
+use utils::framerate::FPSManager;
 use sdl2::render::TextureCreator;
 use sdl2::render::RenderTarget;
 use sdl2::render::Texture;

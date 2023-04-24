@@ -15,7 +15,7 @@ use sdl2::Sdl;
 use std::collections::VecDeque;
 use sdl2::keyboard::Keycode;
 use sdl2::render::Canvas;
-use sdl2::gfx::framerate::FPSManager;
+use utils::framerate::FPSManager;
 use sdl2::rect::Rect;
 use std::io::Cursor;
 use rand::{thread_rng,Rng};

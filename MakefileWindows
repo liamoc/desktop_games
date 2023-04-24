@@ -1,3 +1,5 @@
+all:: upto11 allhands archaeologist solitude soyuz corbynball cylons taipan vermin gatchi vexation jackpot box-factory brooklyn ishi mageja micro-chess peggy tainan
+
 upto11::
 	./build_windows.sh upto11 mep-up-to-11
 
@@ -30,9 +32,6 @@ ishi::
 
 solitude::
 	./build_windows.sh solitude mep-solitude
-
-peggy::
-	./build_windows.sh peggy mep-peggy
 
 soyuz::
 	./build_windows.sh soyuz mep-soyuz

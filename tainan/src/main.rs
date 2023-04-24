@@ -17,7 +17,7 @@ use sdl2::video::Window;
 use sdl2::Sdl; 
 use sdl2::keyboard::Keycode;
 use sdl2::render::Canvas;
-use sdl2::gfx::framerate::FPSManager;
+use utils::framerate::FPSManager;
 use std::io::Cursor;
 use rand::{thread_rng};
 use rand::seq::SliceRandom;

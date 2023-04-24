@@ -4,14 +4,14 @@ This is the source code to the Micro Entertainment Pack, a collection of tiny de
 
 All games are made using Rust and my [tesserae](https://crates.io/crates/tesserae/) library for graphics composed out of 8x8 2 colour tiles. All of the games in the pack use a common tileset to do all of their graphical drawing. All graphics were drawn using the tesseraed editor that comes with the library. I also used this tileset to build the icons and cover art for the game, along with effects from Affinity Photo.
 
-For input handling, rendering of graphics, and regulation of framerate, I use the cross-platform SDL2 and SDL2\_gfx libraries.
+For input handling, rendering of graphics, etc, I use the cross-platform SDL2 libraries.
 
 # Building
 
 
 *The makefiles and build scripts in this repository are for building bundles and deploying them to itch.io*. They are not for building the games themselves. To do that, you can just use cargo, like any other Rust project.
 
-You will need SDL2 and SDL2\_gfx installed on your system in some form or other. Rust's sdl2 crate does support bundled SDL2 but I haven't investigated this as it's not needed for my use case.
+You will need SDL2 installed on your system in some form or other. Rust's sdl2 crate does support bundled SDL2 but I haven't investigated this as it's not needed for my use case.
 
 Obviously you will also need rustc and cargo, I recommend installing it via rustup.
 

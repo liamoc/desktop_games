@@ -2,6 +2,7 @@ extern crate tesserae;
 extern crate sdl2;
 pub mod menu;
 pub mod color;
+pub mod framerate;
 use sdl2::render::Texture;
 use sdl2::render::TextureCreator;
 use sdl2::render::RenderTarget;

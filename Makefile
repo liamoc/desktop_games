@@ -1,70 +1,54 @@
-upto11::
-	cd upto11 && cargo bundle --release
-	butler push target/release/bundle/osx/Up\ to\ 11.app liamoc/mep-up-to-11:mac-m1
+all:: upto11 allhands archaeologist solitude soyuz corbynball cylons taipan vermin gatchi vexation jackpot box-factory brooklyn ishi mageja micro-chess peggy tainan
 
 peggy::
-	cd peggy && cargo bundle --release
-	butler push target/release/bundle/osx/Peggy.app liamoc/mep-peggy:mac-m1
+	./build_mac.sh peggy mep-peggy Peggy
 box-factory::
-	cd box-factory && cargo bundle --release
-	butler push target/release/bundle/osx/Box\ Factory.app liamoc/mep-box-factory:mac-m1
+	./build_mac.sh box-factory mep-box-factory "Box Factory"
 micro-chess::
-	cd micro-chess && cargo bundle --release
-	butler push target/release/bundle/osx/Micro\ Chess.app liamoc/mep-micro-chess:mac-m1
+	./build_mac.sh micro-chess mep-micro-chess "Micro Chess"
 brooklyn::
-	cd brooklyn && cargo bundle --release
-	butler push target/release/bundle/osx/Brooklyn.app liamoc/mep-brooklyn:mac-m1
-
+	./build_mac.sh brooklyn mep-brooklyn "Brooklyn"
 mageja::
-	cd mageja && cargo bundle --release
-	butler push target/release/bundle/osx/Mageja.app liamoc/mep-mageja:mac-m1
-allhands::
-	cd allhands && cargo bundle --release
-	butler push target/release/bundle/osx/All\ Hands.app liamoc/mep-all-hands:mac-m1
-archaeologist::
-	cd archaeologist && cargo bundle --release
-	butler push target/release/bundle/osx/Archaeologist.app liamoc/mep-archaeologist:mac-m1
+	./build_mac.sh mageja mep-mageja "Mageja"
 
 tainan::
-	cd tainan && cargo bundle --release
-	butler push target/release/bundle/osx/Tainan.app liamoc/mep-tainan:mac-m1
+	./build_mac.sh tainan mep-tainan "Tainan"
 
 ishi::
-	cd ishi && cargo bundle --release
-	butler push target/release/bundle/osx/Ishi.app liamoc/mep-ishi:mac-m1
+	./build_mac.sh ishi mep-ishi "Ishi"
+
+upto11::
+	./build_mac.sh upto11 mep-up-to-11 "Up to 11"
+
+allhands::
+	./build_mac.sh allhands mep-all-hands "All Hands"
+
+archaeologist::
+	./build_mac.sh archaeologist mep-archaeologist "Archaeologist"
 
 solitude::
-	cd solitude && cargo bundle --release
-	butler push target/release/bundle/osx/Solitude.app liamoc/mep-solitude:mac-m1
+	./build_mac.sh solitude mep-solitude "Solitude"
 
 soyuz::
-	cd soyuz && cargo bundle --release
-	butler push target/release/bundle/osx/Soyuz.app liamoc/mep-soyuz:mac-m1
+	./build_mac.sh soyuz mep-soyuz "Soyuz"
 
 corbynball::
-	cd corbynball && cargo bundle --release
-	butler push target/release/bundle/osx/Corbynball.app liamoc/mep-corbynball:mac-m1
+	./build_mac.sh corbynball mep-corbynball "Corbynball"
 
 cylons::
-	cd cylons && cargo bundle --release
-	butler push target/release/bundle/osx/Cylons.app liamoc/mep-cylons:mac-m1
+	./build_mac.sh cylons mep-cylons "Cylons"
 
 taipan::
-	cd taipan && cargo bundle --release
-	butler push target/release/bundle/osx/Taipan.app liamoc/mep-taipan:mac-m1
+	./build_mac.sh taipan mep-taipan "Taipan"
 
 vermin::
-	cd vermin && cargo bundle --release
-	butler push target/release/bundle/osx/Vermin\'s\ Vengeance.app liamoc/mep-vermins-vengeance:mac-m1
+	./build_mac.sh vermin mep-vermins-vengeance "Vermin's Vengeance"
 
 gatchi::
-	cd gatchi && cargo bundle --release
-	butler push target/release/bundle/osx/Gatchi.app liamoc/mep-gatchi:mac-m1
+	./build_mac.sh gatchi mep-gatchi "Gatchi"
 
 vexation::
-	cd vexation && cargo bundle --release
-	butler push target/release/bundle/osx/Vexation.app liamoc/mep-vexation:mac-m1
+	./build_mac.sh vexation mep-vexation "Vexation"
 
 jackpot::
-	cd jackpot && cargo bundle --release
-	butler push target/release/bundle/osx/Jackpot.app liamoc/mep-jackpot:mac-m1
+	./build_mac.sh jackpot mep-jackpot "Jackpot"

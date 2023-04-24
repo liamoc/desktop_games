@@ -13,7 +13,7 @@ tesserae = "0.3.1"
 [dependencies.sdl2]
 version = "0.33.0"
 default-features = false
-features = ["use_mac_framework","gfx"]
+features = ["use_mac_framework"]
 
 [dependencies.utils]
 path = "../utils"
@@ -27,6 +27,6 @@ copyright="Liam O'Connor 2020"
 category="public.app-category.puzzle-games"
 short_description="A rodent's revenge clone."
 osx_minimum_system_version="10.13.3"
-osx_frameworks=["SDL2", "SDL2_gfx"]
+osx_frameworks=["SDL2"]
 
-deb_depends=["libsdl2-2.0-0 (>= 2.0.9)", "libsdl2-gfx-1.0-0 (>= 1.0.4)"]
+deb_depends=["libsdl2-2.0-0 (>= 2.0.9)"]

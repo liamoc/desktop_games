@@ -17,7 +17,7 @@ use sdl2::EventSubsystem;
 use sdl2::video::Window;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
-use sdl2::gfx::framerate::FPSManager;
+use utils::framerate::FPSManager;
 use sdl2::render::{BlendMode,Canvas};
 use sdl2::EventPump;
 use utils::menu::{*};
