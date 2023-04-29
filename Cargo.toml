@@ -19,5 +19,6 @@ members = [
     "allhands",
     "tainan",
     "ishi",
-    "brooklyn"
+    "brooklyn",
+    "grenadier"
 ]

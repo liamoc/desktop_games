@@ -13,6 +13,7 @@ pub const PALE_BLUE : Color = rgba(114,159,207,255);
 pub const BRIGHT_GREEN : Color = rgba(136,226,52,255);
 pub const ORANGE : Color = rgba(245,121,0,255);
 pub const PALE_ORANGE : Color = rgba(252,175,62,255);
+pub const PALE_PURPLE : Color = rgba(255,202,247,255);
 pub const GREEN : Color = rgba(78,108,6,255);
 pub const PURPLE : Color = rgba(92,52,102,255);
 pub const TEAL : Color = rgba(27,128,120,255);

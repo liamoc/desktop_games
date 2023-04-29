@@ -279,6 +279,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "grenadier"
+version = "0.1.0"
+dependencies = [
+ "rand",
+ "sdl2",
+ "tesserae",
+ "utils",
+]
+
+[[package]]
 name = "hermit-abi"
 version = "0.1.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
