@@ -131,7 +131,7 @@ impl <'r> GraphicsSet<Texture<'r>> {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum HighlightType {
-    Free, Selected, Hover, Hint
+    Free, Selected, Hover, Hint, Obscured, ObscuredHover
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct MTile {
@@ -194,8 +194,12 @@ impl MTile {
             Some(HighlightType::Selected) => graphics.tile_selected.draw(canvas,(position.0+2,position.1+2)),
             Some(HighlightType::Hover) => graphics.tile_hover.draw(canvas,(position.0+2,position.1+2)),
             Some(HighlightType::Hint) => graphics.tile_hint.draw(canvas,(position.0+2,position.1+2)),
+            Some(HighlightType::Obscured) => graphics.tile_highlight.draw(canvas,(position.0+2,position.1+2)),
+            Some(HighlightType::ObscuredHover) => graphics.tile_hover.draw(canvas,(position.0+2,position.1+2)),
         }
-        graphics.tiles[self.value as usize].draw(canvas,(position.0+2+8,position.1+2+8));
+        if highlight != Some(HighlightType::Obscured) && highlight != Some(HighlightType::ObscuredHover) { 
+            graphics.tiles[self.value as usize].draw(canvas,(position.0+2+8,position.1+2+8)) 
+        };
     }
 
 }
@@ -272,6 +276,18 @@ impl Ord for Sen {
         other.cost().cmp(&self.cost())
     }
 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Variant {
+    Mahjong, Shisen{gravity: bool}, Memory
+}
+impl Variant {
+    pub fn is_shisen(&self) -> bool {
+        match *self {
+            Variant::Shisen{ .. } => true, _ => false
+        }
+    }
+
+}
 pub struct Table {    
     tiles: [[[Option<MTile>;36];32];8],
     frees: [[[bool;36];32];8],
@@ -284,18 +300,16 @@ pub struct Table {
     display_frees: bool,
     game_won: bool,
     move_count: usize,
-    shisen: bool,
-    gravity: bool,
+    variant: Variant
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Layout {
-    Turtle, Cube, Bridge, Castle, Pyramid, ShisenSho, ShisenGravity
+    Turtle, Cube, Bridge, Castle, Pyramid, ShisenSho, ShisenGravity, Memory
 }
 impl Table {
     fn clear_layout(&mut self) {
-        self.shisen = false;
-        self.gravity = false;
+        self.variant = Variant::Mahjong;
         for z in 0..8 {
             for x in 0..36 {
                 for y in 0..32 {
@@ -395,14 +409,23 @@ impl Table {
         self.layout[5][13][15] = true;
         self.layout[6][13][15] = true;
     }
-    fn shisen_sho(&mut self) {
+    fn memory(&mut self) {
         self.clear_layout();
         for y in 0..8 {
             for x in 0..18 {
                 self.layout[0][y*2+3][x*2] = true;
             }
         }
-        self.shisen = true;
+        self.variant = Variant::Memory;
+    }
+    fn shisen_sho(&mut self, gravity: bool) {
+        self.clear_layout();
+        for y in 0..8 {
+            for x in 0..18 {
+                self.layout[0][y*2+3][x*2] = true;
+            }
+        }
+        self.variant = Variant::Shisen { gravity };
     }
     fn castle_layout(&mut self) {
         self.clear_layout();
@@ -562,7 +585,7 @@ impl Table {
                 if self.frees[z][y][x] {
                     if let Some(u) = self.tiles[z][y][x] {
                         if MTile::matches(t, u) {
-                            return !self.shisen || self.shisen_path(yy as i32,xx as i32,y as i32,x as i32); //
+                            return !self.variant.is_shisen() || self.shisen_path(yy as i32,xx as i32,y as i32,x as i32); //
                         }
                     }
                 }
@@ -596,7 +619,7 @@ impl Table {
         }
         let mut moves = Vec::new();
         loop {
-            if self.gravity { self.shisen_apply_gravity() }
+            if self.variant == (Variant::Shisen{gravity: true}) { self.shisen_apply_gravity() }
             self.recalculate_frees();
             let mut locations = Vec::new();
             for z in 0..8 {
@@ -611,7 +634,7 @@ impl Table {
             if locations.len() < 2 { break } 
             locations.shuffle(&mut thread_rng());
             let (z1,y1,x1) = locations.pop().unwrap();
-            let (z2,y2,x2) = if self.shisen {
+            let (z2,y2,x2) = if self.variant.is_shisen() {
                 let mut result = None;
                 for i in 0..locations.len() {
                     if self.shisen_path(y1 as i32, x1 as i32, locations[i].1 as i32, locations[i].2 as i32) {
@@ -624,7 +647,7 @@ impl Table {
             } else {
                 locations.pop().unwrap()
             };
-            let (yy1,xx1,yy2,xx2) = if self.gravity {
+            let (yy1,xx1,yy2,xx2) = if (self.variant == Variant::Shisen{gravity: true}) {
                 let v1 = self.tiles[z1][y1][x1].unwrap().value as usize;
                 let v2 = self.tiles[z2][y2][x2].unwrap().value as usize;
                 (v1/18*2+3,v1%18*2,v2/18*2+3,v2%18*2)
@@ -680,7 +703,7 @@ impl Table {
         return true
     }
     fn is_free(&self, z:usize,y:usize,x:usize) -> bool {
-        if self.shisen { return true };
+        if self.variant.is_shisen() || self.variant == Variant::Memory { return true };
         self.is_free_top(z,y,x) && (self.is_free_left(z,y,x) || self.is_free_right(z,y,x))
     }
     fn recalculate_frees(&mut self) {
@@ -713,8 +736,7 @@ impl Table {
             history: Vec::new(),
             gravity_history: Vec::new(),
             move_count:0,
-            shisen: false,
-            gravity: false,
+            variant: Variant::Mahjong
         };
         match layout {
             Layout::Cube => table.cube_layout(),
@@ -722,8 +744,9 @@ impl Table {
             Layout::Bridge => table.bridge_layout(),
             Layout::Castle => table.castle_layout(),
             Layout::Pyramid => table.pyramid_layout(),
-            Layout::ShisenSho => table.shisen_sho(),
-            Layout::ShisenGravity => { table.shisen_sho(); table.gravity = true}
+            Layout::ShisenSho => table.shisen_sho(false),
+            Layout::ShisenGravity => table.shisen_sho(true),
+            Layout::Memory => table.memory()
         };
         table.populate_board();
         table.recalculate_frees();
@@ -732,7 +755,7 @@ impl Table {
     fn undo(&mut self) {
         self.deselect();
         if let Some(((z,y,x),(zz,yy,xx),t,u)) = self.history.pop() {
-            if self.gravity {
+            if self.variant == (Variant::Shisen{gravity: true}) {
                 if let Some(ls) = self.gravity_history.pop() {
                     for (y,x) in ls {
                         self.tiles[0][y-2][x] = Some(self.tiles[0][y][x].unwrap());
@@ -759,9 +782,12 @@ impl Table {
                                     self.move_count+= 1;
                                     self.history.push(((z,y,x),(zz,yy,xx),t,u));
                                     self.selected = None;
-                                    if self.gravity { self.shisen_apply_gravity(); }
+                                    if self.variant == (Variant::Shisen{gravity: true}) { self.shisen_apply_gravity(); }
                                     self.recalculate_frees();
                                 } else {
+                                    if self.variant == Variant::Memory {
+                                        self.move_count += 1;
+                                    }
                                     self.selected = position;
                                 }
                             }
@@ -780,7 +806,7 @@ impl Table {
     }
     fn draw<'t>(&self, canvas: &mut Canvas<Window>, graphics: &GraphicsSet<Texture<'t>>) {
         graphics.table.draw(canvas,(0,0));
-        let xshift = if self.shisen { -9 } else {0};
+        let xshift = if self.variant.is_shisen() || self.variant == Variant::Memory { -9 } else {0};
         for z in 0..8 {
             for y in (0..32).rev() {
                 for x in (0..36).rev() {
@@ -793,10 +819,12 @@ impl Table {
                 for x in (0..36).rev() {
                     if let Some(t) = self.tiles[z][y][x] {
                         let hl = 
-                            if self.selected == Some((z,y,x)) { Some(HighlightType::Selected) } 
+                            if self.selected == Some((z,y,x)) { if self.variant == Variant::Memory { None } else { Some(HighlightType::Selected) }  }
                             else if self.hint_cells.contains(&(z,y,x)) { Some (HighlightType::Hint) }
-                            else if self.display_frees && self.frees[z][y][x] { if self.mouseover == Some((z,y,x)) { Some(HighlightType::Hover) } else { Some(HighlightType::Free) } } 
-                            else if !self.display_frees && self.mouseover == Some((z,y,x)) { Some(HighlightType::Hover) } else  { None };
+                            else if self.variant != Variant::Memory { 
+                                if self.display_frees && self.frees[z][y][x] { if self.mouseover == Some((z,y,x)) { Some(HighlightType::Hover) } else { Some(HighlightType::Free) } } 
+                                else if !self.display_frees && self.mouseover == Some((z,y,x)) { Some(HighlightType::Hover) } else  { None }
+                            } else { if self.mouseover == Some((z,y,x)) { Some (HighlightType::ObscuredHover) } else { Some(HighlightType::Obscured) } };
                         t.draw(canvas, hl, graphics, (x as i32*7+(z as i32*2)+xshift,y as i32*11+(z as i32*2)));
                     }
                 }
@@ -806,7 +834,7 @@ impl Table {
     }
 
     fn collides_tile(&self, position: (i32,i32)) -> Option<(usize, usize, usize)> {
-        let xshift = if self.shisen { 9 } else {0};
+        let xshift = if self.variant.is_shisen() || self.variant == Variant::Memory { 9 } else {0};
         for z in (0..8).rev() {
             let bx = ((position.0 + xshift - 6 - z as i32 * 2) / 7).max(0) as usize;
             let by = ((position.1 - 6 - z as i32 * 2) / 11).max(0) as usize;
@@ -853,6 +881,8 @@ fn main_loop(mut window:Window, sdl_context: &Sdl) {
                             .add(MenuItem::separator(136, &texture_creator,&graphics_set.tile_set))
                             .add(MenuItem::new("Shisen-sho", 357, Keycode::F6,&texture_creator,&graphics_set.tile_set))
                             .add(MenuItem::new("Shisen Gravity", 358, Keycode::F7,&texture_creator,&graphics_set.tile_set))
+                            .add(MenuItem::separator(136, &texture_creator,&graphics_set.tile_set))
+                            .add(MenuItem::new("Memory", 361, Keycode::F10,&texture_creator,&graphics_set.tile_set))
                             .add(MenuItem::separator(136, &texture_creator,&graphics_set.tile_set))
                             .add(MenuItem::new("Quit",363, Keycode::F12,&texture_creator,&graphics_set.tile_set)))
                     .add(Menu::new("ACTION",88,&texture_creator,&graphics_set.tile_set)
@@ -933,6 +963,12 @@ fn main_loop(mut window:Window, sdl_context: &Sdl) {
                     },
                     Event::KeyDown { keycode: Some(Keycode::F6), ..} => {
                         layout = Layout::ShisenSho;
+                        let tog = table.display_frees;
+                        table = Table::new(layout);
+                        table.display_frees = tog;
+                    },
+                    Event::KeyDown { keycode: Some(Keycode::F10), ..} => {
+                        layout = Layout::Memory;
                         let tog = table.display_frees;
                         table = Table::new(layout);
                         table.display_frees = tog;
