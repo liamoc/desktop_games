@@ -1,4 +1,7 @@
-all:: upto11 allhands archaeologist solitude soyuz corbynball cylons taipan vermin gatchi vexation jackpot box-factory brooklyn ishi mageja micro-chess peggy tainan grenadier
+all:: upto11 allhands archaeologist solitude soyuz corbynball cylons taipan vermin gatchi vexation jackpot box-factory brooklyn ishi mageja micro-chess peggy tainan grenadier bellum
+
+bellum::
+	./build_windows.sh bellum mep-bellum
 
 grenadier::
 	./build_windows.sh grenadier mep-grenadier
