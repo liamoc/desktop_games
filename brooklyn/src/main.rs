@@ -1389,8 +1389,8 @@ fn main_loop(mut window:Window, sdl_context: &Sdl) {
 
         let mut md = false;
     loop {
-        canvas.set_draw_color(CHARCOAL);
-        canvas.clear();
+        //canvas.set_draw_color(CHARCOAL);
+        //canvas.clear();
         table.draw(&mut canvas, &graphics_set);
         score_gfx.draw_rect(0, 0, 6, 1, Tile {fg: TRANSPARENT, bg: TRANSPARENT, index:0});
         score_gfx.draw_text(&table.score.to_string(), &graphics_set.tile_set , 0, 0, DARK_CHARCOAL, TRANSPARENT);
