@@ -30,11 +30,13 @@ struct GraphicsSet<T> {
     ships: [Graphic<T>;7],
     hover_box: [Graphic<T>;2],
     attack_hover_box: [Graphic<T>;2],
-    selection_box: [Graphic<T>;2]
+    selection_box: [Graphic<T>;2],
+    occupation_box: [[Graphic<T>;7];2],
 }
 
 
 impl <'r> GraphicsSet<Texture<'r>> {
+    
     fn planet_graphic<T>(texture_creator: &'r TextureCreator<T>, tile_set : &TileSet, size: usize, fg: Color) -> Graphic<Texture<'r>> {
         if size < 3 {
             let mut t = Graphic::blank(1,1).textured(texture_creator);
@@ -58,7 +60,6 @@ impl <'r> GraphicsSet<Texture<'r>> {
         t.set_tile(0, 0, Tile { index: 441,  fg, bg: TRANSPARENT});
         t.update_texture(tile_set);
         t
-        
     }
     fn planet_box<T>(texture_creator: &'r TextureCreator<T>, tile_set : &TileSet, fg: Color, w:u32, h:u32) -> Graphic<Texture<'r>> {
         let mut t = Graphic::blank(w,h).textured(texture_creator);
@@ -77,13 +78,39 @@ impl <'r> GraphicsSet<Texture<'r>> {
         t.update_texture(&tile_set);
         t
     }
+    fn occupation_box<T>(texture_creator: &'r TextureCreator<T>, tile_set : &TileSet, fg: Color, w:u32, h:u32) -> Graphic<Texture<'r>> {
+        let mut t = Graphic::blank(w,h).textured(texture_creator);
+        t.set_tile(0, 0, Tile {index:264,fg, bg: TRANSPARENT});
+        t.set_tile(0, h-1, Tile {index:261,fg, bg: TRANSPARENT});
+        t.set_tile(w-1, 0, Tile {index:263,fg, bg: TRANSPARENT});
+        t.set_tile(w-1, h-1, Tile {index:262,fg, bg: TRANSPARENT});
+        for x in 1..=w-2 {
+            t.set_tile(x, 0, Tile{index:242,fg, bg:TRANSPARENT});
+            t.set_tile(x, h-1, Tile{index:240,fg, bg:TRANSPARENT});
+        }
+        for y in 1..=h-2 {
+            t.set_tile(0, y, Tile{index:243,fg, bg:TRANSPARENT});
+            t.set_tile(w-1, y, Tile{index:241,fg, bg:TRANSPARENT});
+        }
+        t.update_texture(&tile_set);
+        t
+    }
+    fn occupation_boxes<T>(w:u32, h:u32, tile_set : &TileSet, texture_creator: &'r TextureCreator<T>) -> [Graphic<Texture<'r>>;7] {
+        [ Self::occupation_box(texture_creator, tile_set,NEUTRAL_GRAY,w,h),
+          Self::occupation_box(texture_creator, tile_set,WHITE,w,h),
+          Self::occupation_box(texture_creator, tile_set,PALE_BLUE,w,h),
+          Self::occupation_box(texture_creator, tile_set,rgba(239,41,41,255),w,h),
+          Self::occupation_box(texture_creator, tile_set,BRIGHT_GREEN,w,h),
+          Self::occupation_box(texture_creator, tile_set,ORANGE,w,h),
+          Self::occupation_box(texture_creator, tile_set,BLACK,w,h) ]
+    }
     fn planet_graphics<T>(size: usize, tile_set : &TileSet, texture_creator: &'r TextureCreator<T>) -> [Graphic<Texture<'r>>;7] {
         [ Self::planet_graphic(texture_creator, tile_set,size,NEUTRAL_GRAY),
           Self::planet_graphic(texture_creator, tile_set,size,WHITE),
-          Self::planet_graphic(texture_creator, tile_set,size,ORANGE),
-          Self::planet_graphic(texture_creator, tile_set,size,YELLOW),
+          Self::planet_graphic(texture_creator, tile_set,size,PALE_BLUE),
+          Self::planet_graphic(texture_creator, tile_set,size,rgba(239,41,41,255)),
           Self::planet_graphic(texture_creator, tile_set,size,BRIGHT_GREEN),
-          Self::planet_graphic(texture_creator, tile_set,size,PALE_PURPLE),
+          Self::planet_graphic(texture_creator, tile_set,size,ORANGE),
           Self::planet_graphic(texture_creator, tile_set,size,BLACK) ]
     }
     
@@ -109,10 +136,10 @@ impl <'r> GraphicsSet<Texture<'r>> {
         let ships = [ 
             Self::ship_graphic(texture_creator, &tile_set,NEUTRAL_GRAY),
             Self::ship_graphic(texture_creator, &tile_set,WHITE),
-            Self::ship_graphic(texture_creator, &tile_set,ORANGE),
-            Self::ship_graphic(texture_creator, &tile_set,YELLOW),
+            Self::ship_graphic(texture_creator, &tile_set,PALE_BLUE),
+            Self::ship_graphic(texture_creator, &tile_set,rgba(239,41,41,255)),
             Self::ship_graphic(texture_creator, &tile_set,BRIGHT_GREEN),
-            Self::ship_graphic(texture_creator, &tile_set,PALE_PURPLE),
+            Self::ship_graphic(texture_creator, &tile_set,ORANGE),
             Self::ship_graphic(texture_creator, &tile_set,BLACK),
         ];
         let selection_box = [
@@ -129,8 +156,13 @@ impl <'r> GraphicsSet<Texture<'r>> {
             Self::planet_box(texture_creator, &tile_set, PALE_BLUE, 3,3),
             Self::planet_box(texture_creator, &tile_set, PALE_BLUE, 4,4)
         ];
+
+        let occupation_box = [
+            Self::occupation_boxes(3, 3,&tile_set, texture_creator),
+            Self::occupation_boxes(4, 4,&tile_set, texture_creator)
+        ];
         GraphicsSet {
-            tile_set, star, planets, ships, selection_box, hover_box, attack_hover_box
+            tile_set, star, planets, ships, selection_box, hover_box, attack_hover_box, occupation_box
         }
     }
 
@@ -235,6 +267,7 @@ pub struct Ship {
 }
 pub struct SolarSystem {    
     planets: Vec<Planet>,
+    occupations: Vec<(usize, usize, Option<usize>, u32)>,
     ships_in_motion: Vec<Ship>, 
     computer_players: Vec<AI>,
     player_points: Vec<u32>,
@@ -244,11 +277,12 @@ pub struct SolarSystem {
     drawing_box: Option<(i32,i32)>,
     mouse_pos: (i32,i32),
     fog_of_war: bool,
+    fog_of_war_ships: bool,
     num_planets: usize
 }
 
 impl SolarSystem {
-    fn new(num_planets: usize, computer_players: usize,fog_of_war: bool) -> SolarSystem {
+    fn new(num_planets: usize, computer_players: usize,dispatch_size:f64,fog_of_war_ships :bool,fog_of_war: bool) -> SolarSystem {
         let mut planets = Vec::new();
         let available_space = WIDTH as f64/2.0 - 30.0;
         let increment = available_space / num_planets as f64;
@@ -282,10 +316,12 @@ impl SolarSystem {
             player_points: vec![0;2+computer_players],
             hovered: None,
             selected: Vec::new(),
-            dispatch_size: 0.5,
+            dispatch_size: dispatch_size,
             drawing_box: None,
             mouse_pos: (0,0),
             fog_of_war,
+            fog_of_war_ships,
+            occupations: Vec::new(),
             num_planets
         };
         system 
@@ -475,12 +511,14 @@ impl SolarSystem {
             }
         }
         for s in 0..self.ships_in_motion.len() {  
-            let (shx,shy) = self.ships_in_motion[s].position;
-            graphics.ships[6].draw(canvas, (shx as i32 -4+1, shy as i32+9-4));
-            graphics.ships[6].draw(canvas, (shx as i32 -4-1, shy as i32+9-4));
-            graphics.ships[6].draw(canvas, (shx as i32 -4, shy as i32+9-4+1));
-            graphics.ships[6].draw(canvas, (shx as i32 -4, shy as i32+9-4-1));
-            graphics.ships[self.ships_in_motion[s].owner+1].draw(canvas, (shx as i32 -4, shy as i32+9-4));
+            if self.ships_in_motion[s].owner == 0 || !self.fog_of_war_ships {
+                let (shx,shy) = self.ships_in_motion[s].position;
+                graphics.ships[6].draw(canvas, (shx as i32 -4+1, shy as i32+9-4));
+                graphics.ships[6].draw(canvas, (shx as i32 -4-1, shy as i32+9-4));
+                graphics.ships[6].draw(canvas, (shx as i32 -4, shy as i32+9-4+1));
+                graphics.ships[6].draw(canvas, (shx as i32 -4, shy as i32+9-4-1));
+                graphics.ships[self.ships_in_motion[s].owner+1].draw(canvas, (shx as i32 -4, shy as i32+9-4));
+            }
         }
         if let Some(s) = self.hovered {
             let (x,y) = self.cartesian(OrbitOrigin::Planet(s));
@@ -500,6 +538,18 @@ impl SolarSystem {
             let xx = x as i32 - offset;
             let yy = y as i32 + 9 - offset;
             graphics.selection_box[if self.planets[s].size >= 3 { 1 } else { 0}].draw(canvas, (xx,yy));
+        }
+        for (s,occupier,victim,t) in self.occupations.clone() {
+            let (x,y) = self.cartesian(OrbitOrigin::Planet(s));
+            let offset = if self.planets[s].size >= 3  { 16 } else {  12 };
+            let xx = x as i32 - offset;
+            let yy = y as i32 + 9 - offset;
+            let cap = (t.max(20) - 20) / 16;
+            if t % 5 <= cap && t > 20 { 
+                graphics.occupation_box[if self.planets[s].size >= 3 { 1 } else { 0}][victim.map_or(0, |x| x+1)].draw(canvas,(xx,yy)); 
+            } else {
+                graphics.occupation_box[if self.planets[s].size >= 3 { 1 } else { 0}][occupier+1].draw(canvas,(xx,yy)); 
+            }
         }
         if let Some(k) = self.drawing_box {
             canvas.set_draw_color(PALE_BLUE);
@@ -563,8 +613,11 @@ impl SolarSystem {
                     let amount = (self.planets[k].garrison as f64 * self.dispatch_size) as u32;
                     self.planets[k].garrison -= amount;
                     let pos = self.cartesian(OrbitOrigin::Planet(k));
+                    let mut prep = 0;
                     for _i in 0..amount {
-                        self.ships_in_motion.push(Ship {owner: 0,position:pos, target: p, prep_time: thread_rng().gen_range(0, 30)});
+                        prep += thread_rng().gen_range(10, 20);
+                        let spos = (pos.0 + thread_rng().gen_range(-5.0,5.0), pos.1 + thread_rng().gen_range(-5.0,5.0));
+                        self.ships_in_motion.push(Ship {owner: 0,position:spos, target: p, prep_time: prep});
                     }
                 }
                 self.selected = Vec::new();
@@ -608,15 +661,17 @@ impl SolarSystem {
             let target = self.ships_in_motion[s].target;
             let target_pos = self.cartesian(OrbitOrigin::Planet(target));
             let hyp = Self::distance(target_pos, self.ships_in_motion[s].position);
-            let dx = (target_pos.0 - self.ships_in_motion[s].position.0) / (hyp * 2.0);
-            let dy = (target_pos.1 - self.ships_in_motion[s].position.1) / (hyp * 2.0);
+            let dx = (target_pos.0 - self.ships_in_motion[s].position.0) / (hyp * 3.0);
+            let dy = (target_pos.1 - self.ships_in_motion[s].position.1) / (hyp * 3.0);
             self.ships_in_motion[s].position.0 += dx;
             self.ships_in_motion[s].position.1 += dy;
             if hyp < 4.0 {
                 if self.planets[target].garrison > 0 && self.planets[target].owner != Some(self.ships_in_motion[s].owner) {
                     self.planets[target].garrison -= 1;
                 } else if self.planets[target].owner != Some(self.ships_in_motion[s].owner) {
+                    self.occupations.push((target,self.ships_in_motion[s].owner,self.planets[target].owner, 100));
                     self.planets[target].owner = Some(self.ships_in_motion[s].owner);
+                    self.planets[target].construction_time = Planet::construction_cap(self.planets[target].size);
                     self.selected.retain(|x| *x != target);
                 } else {
                     self.planets[target].garrison += 1;
@@ -628,6 +683,12 @@ impl SolarSystem {
         for j in 0..to_remove.len() {
             self.ships_in_motion.remove(to_remove[j]-j);
         }
+        for m in &mut self.occupations {
+            if m.3 > 0 {
+                m.3 -= 1
+            }
+        }
+        self.occupations.retain(|x| x.3 != 0);
     }
 }
 const WIDTH:u32=328;
@@ -642,7 +703,7 @@ fn main_loop(mut window:Window, sdl_context: &Sdl) {
     let mut event_pump = sdl_context.event_pump().unwrap();
     let texture_creator = canvas.texture_creator();
     let graphics_set = GraphicsSet::new(&texture_creator);
-    let mut table = SolarSystem::new(11,2, false);
+    let mut table = SolarSystem::new(11,2, 0.5,false,false);
     let mut paused: bool = false;
     let mut deploy_gfx = Graphic::blank(4,1).textured(&texture_creator);
     let mut menu = MenuBar::new(WIDTH)
@@ -678,9 +739,10 @@ fn main_loop(mut window:Window, sdl_context: &Sdl) {
                             .add(MenuItem::new("Deploy 66%", 54, Keycode::Num3,&texture_creator,&graphics_set.tile_set))
                             .add(MenuItem::new("Deploy 100%", 55, Keycode::Num4,&texture_creator,&graphics_set.tile_set))
                         )
-                    .add(Menu::new("VIEW",72+(5*8),&texture_creator,&graphics_set.tile_set)
-                            .add(MenuItem::new("Fog of war",7, Keycode::F,&texture_creator, &graphics_set.tile_set))
-                            .add(MenuItem::separator(72+5*8-14, &texture_creator, &graphics_set.tile_set))
+                    .add(Menu::new("VIEW",72+(14*8),&texture_creator,&graphics_set.tile_set)
+                            .add(MenuItem::new("Toggle Fleets Fog",7, Keycode::F,&texture_creator, &graphics_set.tile_set))
+                            .add(MenuItem::new("Toggle Garrison Fog",8, Keycode::G,&texture_creator, &graphics_set.tile_set))
+                            .add(MenuItem::separator(72+14*8-14, &texture_creator, &graphics_set.tile_set))
                             .add(MenuItem::new("Micro-mode",360, Keycode::F9,&texture_creator, &graphics_set.tile_set))
                             );
     let mut rate_limiter = FPSManager::new();
@@ -722,21 +784,24 @@ fn main_loop(mut window:Window, sdl_context: &Sdl) {
                 Event::KeyDown { keycode: Some(Keycode::A), ..} => {
                     table.select_all()
                 }
-                Event::KeyDown { keycode: Some(Keycode::F1), .. } => { table = SolarSystem::new(5,1,table.fog_of_war); paused = true }
-                Event::KeyDown { keycode: Some(Keycode::F2), .. } => { table = SolarSystem::new(8,1,table.fog_of_war); paused = true }
-                Event::KeyDown { keycode: Some(Keycode::F3), .. } => { table = SolarSystem::new(11,1,table.fog_of_war); paused = true }
-                Event::KeyDown { keycode: Some(Keycode::F4), .. } => { table = SolarSystem::new(5,2,table.fog_of_war); paused = true}
-                Event::KeyDown { keycode: Some(Keycode::F5), .. } => { table = SolarSystem::new(8,2,table.fog_of_war); paused = true}
-                Event::KeyDown { keycode: Some(Keycode::F6), .. } => { table = SolarSystem::new(11,2,table.fog_of_war); paused = true}
-                Event::KeyDown { keycode: Some(Keycode::Z), .. } => { table = SolarSystem::new(5,3,table.fog_of_war); paused = true}
-                Event::KeyDown { keycode: Some(Keycode::X), .. } => { table = SolarSystem::new(8,3,table.fog_of_war); paused = true}
-                Event::KeyDown { keycode: Some(Keycode::C), .. } => { table = SolarSystem::new(11,3,table.fog_of_war); paused = true}
-                Event::KeyDown { keycode: Some(Keycode::U), .. } => { table = SolarSystem::new(5,4,table.fog_of_war); paused = true}
-                Event::KeyDown { keycode: Some(Keycode::I), .. } => { table = SolarSystem::new(8,4,table.fog_of_war); paused = true}
-                Event::KeyDown { keycode: Some(Keycode::O), .. } => { table = SolarSystem::new(11,4,table.fog_of_war); paused = true}
-                Event::KeyDown { keycode: Some(Keycode::N), .. } => { table = SolarSystem::new(table.num_planets,table.computer_players.len(),table.fog_of_war); paused = true}
+                Event::KeyDown { keycode: Some(Keycode::F1), .. } => { table = SolarSystem::new(5,1,table.dispatch_size,table.fog_of_war_ships,table.fog_of_war); paused = true }
+                Event::KeyDown { keycode: Some(Keycode::F2), .. } => { table = SolarSystem::new(8,1,table.dispatch_size,table.fog_of_war_ships,table.fog_of_war); paused = true }
+                Event::KeyDown { keycode: Some(Keycode::F3), .. } => { table = SolarSystem::new(11,1,table.dispatch_size,table.fog_of_war_ships,table.fog_of_war); paused = true }
+                Event::KeyDown { keycode: Some(Keycode::F4), .. } => { table = SolarSystem::new(5,2,table.dispatch_size,table.fog_of_war_ships,table.fog_of_war); paused = true}
+                Event::KeyDown { keycode: Some(Keycode::F5), .. } => { table = SolarSystem::new(8,2,table.dispatch_size,table.fog_of_war_ships,table.fog_of_war); paused = true}
+                Event::KeyDown { keycode: Some(Keycode::F6), .. } => { table = SolarSystem::new(11,2,table.dispatch_size,table.fog_of_war_ships,table.fog_of_war); paused = true}
+                Event::KeyDown { keycode: Some(Keycode::Z), .. } => { table = SolarSystem::new(5,3,table.dispatch_size,table.fog_of_war_ships,table.fog_of_war); paused = true}
+                Event::KeyDown { keycode: Some(Keycode::X), .. } => { table = SolarSystem::new(8,3,table.dispatch_size,table.fog_of_war_ships,table.fog_of_war); paused = true}
+                Event::KeyDown { keycode: Some(Keycode::C), .. } => { table = SolarSystem::new(11,3,table.dispatch_size,table.fog_of_war_ships,table.fog_of_war); paused = true}
+                Event::KeyDown { keycode: Some(Keycode::U), .. } => { table = SolarSystem::new(5,4,table.dispatch_size,table.fog_of_war_ships,table.fog_of_war); paused = true}
+                Event::KeyDown { keycode: Some(Keycode::I), .. } => { table = SolarSystem::new(8,4,table.dispatch_size,table.fog_of_war_ships,table.fog_of_war); paused = true}
+                Event::KeyDown { keycode: Some(Keycode::O), .. } => { table = SolarSystem::new(11,4,table.dispatch_size,table.fog_of_war_ships,table.fog_of_war); paused = true}
+                Event::KeyDown { keycode: Some(Keycode::N), .. } => { table = SolarSystem::new(table.num_planets,table.computer_players.len(),table.dispatch_size,table.fog_of_war_ships,table.fog_of_war); paused = true}
                 Event::KeyDown { keycode: Some(Keycode::F), ..} => {
-                    table.fog_of_war = !table.fog_of_war;
+                    table.fog_of_war_ships = !table.fog_of_war_ships;
+                }
+                Event::KeyDown { keycode: Some(Keycode::G), ..} => {
+                    table.fog_of_war  = !table.fog_of_war;
                 }
                 Event::MouseMotion { x, y, .. } => {
                     let yy = y - 9;
@@ -751,7 +816,6 @@ fn main_loop(mut window:Window, sdl_context: &Sdl) {
                         table.mouse_down(x,yy);
                     }
                 }
-
                 Event::MouseButtonUp { x,y,.. } => {
                     let yy = y - 9;
                     table.mouse_up(x,yy);
