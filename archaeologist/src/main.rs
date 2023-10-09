@@ -104,6 +104,13 @@ impl Game {
         }
         self.populated = true;
     }
+    fn space_on(&mut self, position : (u32,u32)) {
+        if self[position].status == CellStatus::Hidden || self[position].status == CellStatus::Flagged {
+            self.toggle_flag(position)
+        } else {
+            self.step_on(position)
+        }
+    }
     fn step_on(&mut self, position: (u32,u32)) {
         if !self.populated {
             self.populate_board(position)            
@@ -290,7 +297,10 @@ impl Game {
     }
 }
 
-fn main_loop(width:u32,height:u32,mines: u32) -> Option<(u32,u32,u32)> {
+#[derive(Clone, Debug, Copy, PartialEq, Eq)]
+enum DisplayMode { Micro, Macro, Normal }
+
+fn main_loop(width:u32,height:u32,mines: u32, display_mode: DisplayMode) -> Option<(u32,u32,u32, DisplayMode)> {
     let sdl_context = sdl2::init().unwrap();
     let video_subsystem = sdl_context.video().unwrap();
     video_subsystem.text_input().start();
@@ -301,6 +311,7 @@ fn main_loop(width:u32,height:u32,mines: u32) -> Option<(u32,u32,u32)> {
         .unwrap();
 
     let mut canvas = window.into_canvas().build().unwrap();
+    
     canvas.set_logical_size((width*2+1)*8, (height*2+1)*8+17+17).unwrap();
     let mut event_subsystem = sdl_context.event().unwrap();
     let mut event_pump = sdl_context.event_pump().unwrap();
@@ -334,17 +345,24 @@ fn main_loop(width:u32,height:u32,mines: u32) -> Option<(u32,u32,u32)> {
                             .add(MenuItem::new("Quick",352, Keycode::F1,&texture_creator,&tile_set))
                             .add(MenuItem::new("Easy", 353, Keycode::F2,&texture_creator,&tile_set))
                             .add(MenuItem::new("Normal", 354, Keycode::F3,&texture_creator,&tile_set))
-                            .add(MenuItem::new("Hard", 355, Keycode::F4,&texture_creator,&tile_set))
+                            .add(MenuItem::new("Wide", 355, Keycode::F4,&texture_creator,&tile_set))
+                            .add(MenuItem::new("Hard", 356, Keycode::F5,&texture_creator,&tile_set))
                             .add(MenuItem::separator(72, &texture_creator,&tile_set))
                             .add(MenuItem::new("Restart", 15, Keycode::N,&texture_creator,&tile_set))
                             .add(MenuItem::new("Quit", 363, Keycode::F12,&texture_creator,&tile_set)))
                     .add(Menu::new("VIEW",112,&texture_creator,&tile_set)
-                            .add(MenuItem::new("Micro-mode", 360, Keycode::F9, &texture_creator, &tile_set)));
+                            .add(MenuItem::new("Micro-mode", 360, Keycode::F9, &texture_creator, &tile_set))
+                            .add(MenuItem::new("Macro-mode", 361, Keycode::F10, &texture_creator, &tile_set)));
     let mut rate_limiter = FPSManager::new();
     rate_limiter.set_framerate(40).unwrap();
-    let mut micro_mode = false;
+    let mut micro_mode = display_mode;
+    match display_mode {
+        DisplayMode::Macro =>  canvas.window_mut().set_size(((width*2+1)*8)*2, ((height*2+1)*8+17+17)*2).unwrap_or_default(),
+        DisplayMode::Micro => canvas.window_mut().set_size(((width*2+1)*8)/2, ((height*2+1)*8+17+17)/2).unwrap_or_default(),
+        DisplayMode::Normal => canvas.window_mut().set_size((width*2+1)*8, (height*2+1)*8+17+17).unwrap_or_default()
+    }
     loop {
-        let time = start.elapsed().as_secs();
+        let time = if game.populated { start.elapsed().as_secs() } else { 0 };
         if !gameover {
             if time != old_time {
                 let s = time.to_string();            
@@ -403,24 +421,36 @@ fn main_loop(width:u32,height:u32,mines: u32) -> Option<(u32,u32,u32)> {
                     return None
                 },
                 Event::KeyDown { keycode: Some(Keycode::F1),..} => {
-                    return Some((10,10,10));
+                    return Some((10,10,10, micro_mode));
                 },
                 Event::KeyDown { keycode: Some(Keycode::F2),..} => {
-                    return Some((20,20,40));
+                    return Some((20,20,40, micro_mode));
                 },
                 Event::KeyDown { keycode: Some(Keycode::F3),..} => {
-                    return Some((20,20,80));
+                    return Some((20,20,80, micro_mode));
                 },
                 Event::KeyDown { keycode: Some(Keycode::F4),..} => {
-                    return Some((30,30,220));
+                    return Some((30,16,99, micro_mode));
+                },
+                Event::KeyDown { keycode: Some(Keycode::F5),..} => {
+                    return Some((30,30,220, micro_mode));
                 },
                 Event::KeyDown { keycode: Some(Keycode::F9), ..} => {
-                    if micro_mode {
-                        micro_mode = false;
+                    if micro_mode != DisplayMode::Normal {
+                        micro_mode = DisplayMode::Normal;
                         canvas.window_mut().set_size((width*2+1)*8, (height*2+1)*8+17+17).unwrap_or_default();
                     } else {
-                        micro_mode = true;
+                        micro_mode = DisplayMode::Micro;
                         canvas.window_mut().set_size(((width*2+1)*8)/2, ((height*2+1)*8+17+17)/2).unwrap_or_default();
+                    }
+                }
+                Event::KeyDown { keycode: Some(Keycode::F10), ..} => {
+                    if micro_mode != DisplayMode::Normal {
+                        micro_mode = DisplayMode::Normal;
+                        canvas.window_mut().set_size((width*2+1)*8, (height*2+1)*8+17+17).unwrap_or_default();
+                    } else {
+                        micro_mode = DisplayMode::Macro;
+                        canvas.window_mut().set_size(((width*2+1)*8)*2, ((height*2+1)*8+17+17)*2).unwrap_or_default();
                     }
                 }
                 Event::KeyDown { keycode: Some(Keycode::N),..} => {
@@ -444,7 +474,16 @@ fn main_loop(width:u32,height:u32,mines: u32) -> Option<(u32,u32,u32)> {
                     mx = ((sx-4)/16).min(width  as i32-1).max(0); 
                     my = ((sy-21)/16).min(height  as i32-1).max(0);
                 }
-
+                Event::KeyDown { ..} if gameover => {
+                    game = Game::new(width,height,mines);
+                    start = Instant::now();
+                    game.draw(&mut graphic, &mut chrome, &tile_set);
+                    graphic.update_texture(&tile_set);
+                    chrome.update_texture(&tile_set);
+                    gameover = false; 
+                    won = false;
+                    md = false;
+                }
                 Event::MouseButtonUp { ..} if gameover => {
                     game = Game::new(width,height,mines);
                     start = Instant::now();
@@ -455,6 +494,12 @@ fn main_loop(width:u32,height:u32,mines: u32) -> Option<(u32,u32,u32)> {
                     won = false;
                     md = false;
                 }
+                Event::KeyDown {  keycode: Some(Keycode::Space), .. } => {
+                    game.space_on(( mx.max(0) as u32, my.max(0) as u32));
+                    game.draw(&mut graphic, &mut chrome, &tile_set);
+                    graphic.update_texture(&tile_set);
+                    chrome.update_texture(&tile_set);
+                }
                 Event::MouseButtonUp { mouse_btn: button, x, y, ..} => {
                     md = false;
                     let (sx,sy) = (x,y);//(x * dw as i32 / ww as i32, y * dh as i32 / wh as i32);
@@ -463,7 +508,11 @@ fn main_loop(width:u32,height:u32,mines: u32) -> Option<(u32,u32,u32)> {
                     if (tx,ty) == (mx, my) {
                         match button { 
                             MouseButton::Left => {
+                                let pop = game.populated;
                                 game.step_on(( tx.max(0) as u32, ty.max(0) as u32));
+                                if !pop && game.populated {
+                                    start = Instant::now();
+                                }
                                 game.draw(&mut graphic, &mut chrome, &tile_set);
                                 graphic.update_texture(&tile_set);
                                 chrome.update_texture(&tile_set);
@@ -491,9 +540,9 @@ fn main() {
     let width = v.get(1).and_then(|f| f.parse().ok()).unwrap_or(20);
     let height= v.get(2).and_then(|f| f.parse().ok()).unwrap_or(20);
     let mines = v.get(3).and_then(|f| f.parse().ok()).unwrap_or(80);
-    let mut act = Some((width,height,mines)) ;
-    while let Some((width,height,mines)) = act {
-        act = main_loop(width, height, mines)
+    let mut act = Some((width,height,mines,DisplayMode::Normal)) ;
+    while let Some((width,height,mines, micro_mode)) = act {
+        act = main_loop(width, height, mines, micro_mode)
     }
     
 }
