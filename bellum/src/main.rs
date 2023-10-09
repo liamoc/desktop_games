@@ -17,6 +17,7 @@ use sdl2::keyboard::Keycode;
 use sdl2::render::Canvas;
 use utils::framerate::FPSManager;
 use sdl2::rect::Rect;
+use core::num;
 use std::io::Cursor;
 use rand::{thread_rng,Rng};
 use utils::color::{*};
@@ -303,11 +304,12 @@ impl SolarSystem {
         let players = (1 + computer_players).min(num_planets).min(5);
         let mut players_vec : Vec<usize> = (0..players).into_iter().collect();
         players_vec.shuffle(&mut thread_rng());
-        let mut p_index = 0;
+        let mut planet_indices : Vec<usize> = (0..num_planets).into_iter().collect();
+        planet_indices.shuffle(&mut thread_rng());
         for v in players_vec {
-            planets[p_index].garrison = 1;
-            planets[p_index].owner = Some(v);
-            p_index += 1;
+            let p = planet_indices.pop().unwrap();
+            planets[p].garrison = 1;
+            planets[p].owner = Some(v);
         }
         let system = SolarSystem {
             planets,
