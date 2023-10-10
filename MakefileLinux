@@ -1,5 +1,6 @@
-all:: upto11 allhands archaeologist solitude soyuz corbynball cylons taipan vermin gatchi vexation jackpot
-
+all:: upto11 allhands archaeologist solitude soyuz corbynball cylons taipan vermin gatchi vexation jackpot rx
+rx::
+	./build_linux.sh rx mep-rx
 peggy::
 	./build_linux.sh peggy mep-peggy
 box-factory::

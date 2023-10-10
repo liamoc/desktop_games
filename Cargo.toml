@@ -21,5 +21,6 @@ members = [
     "ishi",
     "brooklyn",
     "grenadier",
-    "bellum"
+    "bellum",
+    "rx"
 ]
