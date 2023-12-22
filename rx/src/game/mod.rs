@@ -75,7 +75,7 @@ pub enum Status {
     Menu(u32),
     Reacting,
     Clearing(u32),
-    Falling(u32),
+    Falling(u32,bool),
     Infecting(u32, usize)
 }
 impl Status {
@@ -402,15 +402,26 @@ impl Game {
                     self.status = Status::Infecting(n, t-1)
                 }
             }
-            Status::Falling(n) => {
+            Status::Falling(n,nextlevel) => {
+                let y = self.board.size().1-1;
                 if n == 0 {
+                    if nextlevel {
+                        for i in 0..WIDTH {
+                            self.board[(i,y)] = Cell::Empty
+                        }
+                    }
                     if !self.update_gravity() {
-                        self.status = Status::Reacting;
+                        //self.board = Imprint::empty(WIDTH, HEIGHT + BUFFER);
+                        if nextlevel { 
+                            self.status = Status::Infecting(self.level * 4 + 4,2);
+                        } else {
+                            self.status = Status::Reacting;
+                        }
                     } else {
-                        self.status = Status::Falling(3)
+                        self.status = Status::Falling(2,nextlevel)
                     }
                 } else {
-                    self.status = Status::Falling(n-1)
+                    self.status = Status::Falling(n-1, nextlevel)
                 }                
             }
             Status::Clearing(n) => {
@@ -419,10 +430,9 @@ impl Game {
                     if self.check_won_level() {
                         self.deposit_score();
                         self.level += 1;
-                        self.board = Imprint::empty(WIDTH, HEIGHT + BUFFER);
-                        self.status = Status::Infecting(self.level * 4 + 4,2);                        
+                        self.status = Status::Falling(2, true);                        
                     } else {
-                        self.status = Status::Falling(3);    
+                        self.status = Status::Falling(2, false);    
                     }                    
                 } else {
                     self.status = Status::Clearing(n-1)

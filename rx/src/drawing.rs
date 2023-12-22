@@ -2,6 +2,7 @@ use ::imprint::{Cell,Imprint};
 use game::{Game, Status};
 use game::piece::{FieldTile, PieceColor};
 
+use sdl2::pixels::Color;
 use sdl2::render::RenderTarget;
 use sdl2::render::{Canvas,Texture};
 use tesserae::{*};
@@ -17,6 +18,7 @@ pub struct BaseDrawingContext<'r> {
     graphic_hl: OutlinedTile<'r>,
     graphic_hl2: OutlinedTile<'r>,
     graphic_virus: [OutlinedTile<'r>;3],
+    graphic_virus2: [OutlinedTile<'r>;3],
     graphic_orphan: [OutlinedTile<'r>;3],
     graphic_tab_l: [OutlinedTile<'r>;3],
     graphic_tab_r: [OutlinedTile<'r>;3],
@@ -27,6 +29,7 @@ pub struct BaseDrawingContext<'r> {
     top_score: Graphic<Texture<'r>>,
     level: Graphic<Texture<'r>>,
     press_space: Graphic<Texture<'r>>,
+    tick: u32,
 }
 impl <'r> BaseDrawingContext<'r> {
     pub fn new<T>(texture_creator: &'r TextureCreator<T>) -> BaseDrawingContext<'r> {
@@ -37,47 +40,56 @@ impl <'r> BaseDrawingContext<'r> {
         press_space.draw_text("PRESS", &tile_set, 0, 0, utils::color::PALE_PURPLE, utils::color::TRANSPARENT);
         press_space.draw_text("SPACE", &tile_set, 0, 1, utils::color::PALE_PURPLE, utils::color::TRANSPARENT);
         press_space.update_texture(&tile_set);
+        
+        const C1  : Color = rgba(114,159,207,255);
+        let C2 : Color = rgba(244,40,40,255);
+        
         let graphic_speed = [
             OutlinedTile::new(193, utils::color::ORANGE, &tile_set, &texture_creator),
             OutlinedTile::new(215, utils::color::BRIGHT_GREEN, &tile_set, &texture_creator),
             OutlinedTile::new(405, utils::color::YELLOW, &tile_set, &texture_creator),
         ];
         let graphic_virus = [
-            OutlinedTile::new(150, utils::color::ORANGE, &tile_set, &texture_creator),
+            OutlinedTile::new(150, C2, &tile_set, &texture_creator),
             OutlinedTile::new(150, utils::color::YELLOW, &tile_set, &texture_creator),
-            OutlinedTile::new(150, utils::color::BRIGHT_GREEN, &tile_set, &texture_creator),
+            OutlinedTile::new(148, utils::color::BRIGHT_GREEN, &tile_set, &texture_creator),
+        ];
+        let graphic_virus2 = [
+            OutlinedTile::new(256, C2, &tile_set, &texture_creator),
+            OutlinedTile::new(256, utils::color::YELLOW, &tile_set, &texture_creator),
+            OutlinedTile::new(257, utils::color::BRIGHT_GREEN, &tile_set, &texture_creator),
         ];
         let graphic_orphan = [
-            OutlinedTile::new(457, utils::color::ORANGE, &tile_set, &texture_creator),
+            OutlinedTile::new(457, C2, &tile_set, &texture_creator),
             OutlinedTile::new(457, utils::color::YELLOW, &tile_set, &texture_creator),
             OutlinedTile::new(457, utils::color::BRIGHT_GREEN, &tile_set, &texture_creator),
         ];
         let graphic_tab_l = [
-            OutlinedTile::new(334, utils::color::ORANGE, &tile_set, &texture_creator),
+            OutlinedTile::new(334, C2, &tile_set, &texture_creator),
             OutlinedTile::new(334, utils::color::YELLOW, &tile_set, &texture_creator),
             OutlinedTile::new(334, utils::color::BRIGHT_GREEN, &tile_set, &texture_creator),
         ];
         let graphic_tab_r = [
-            OutlinedTile::new(335, utils::color::ORANGE, &tile_set, &texture_creator),
+            OutlinedTile::new(335, C2, &tile_set, &texture_creator),
             OutlinedTile::new(335, utils::color::YELLOW, &tile_set, &texture_creator),
             OutlinedTile::new(335, utils::color::BRIGHT_GREEN, &tile_set, &texture_creator),
         ];
         let graphic_tab_t = [
-            OutlinedTile::new(318, utils::color::ORANGE, &tile_set, &texture_creator),
+            OutlinedTile::new(318, C2, &tile_set, &texture_creator),
             OutlinedTile::new(318, utils::color::YELLOW, &tile_set, &texture_creator),
             OutlinedTile::new(318, utils::color::BRIGHT_GREEN, &tile_set, &texture_creator),
         ];
 
         let graphic_tab_b = [
-            OutlinedTile::new(319, utils::color::ORANGE, &tile_set, &texture_creator),
+            OutlinedTile::new(319, C2, &tile_set, &texture_creator),
             OutlinedTile::new(319, utils::color::YELLOW, &tile_set, &texture_creator),
             OutlinedTile::new(319, utils::color::BRIGHT_GREEN, &tile_set, &texture_creator),
         ];
         let graphic_hl = OutlinedTile::new(149,utils::color::WHITE,&tile_set,&texture_creator);
         let graphic_hl2 = OutlinedTile::new(149,utils::color::PALE_PURPLE,&tile_set,&texture_creator);
         BaseDrawingContext {
-            tile_set: tile_set,
-            chrome:chrome,press_space,
+            tile_set: tile_set,tick:0,
+            chrome:chrome,press_space,graphic_virus2,
             graphic_hl,graphic_hl2,graphic_speed,
             graphic_virus,graphic_orphan,graphic_tab_b,graphic_tab_l,graphic_tab_r,graphic_tab_t,
             score: Graphic::blank(6,1).textured(texture_creator),
@@ -89,7 +101,8 @@ impl <'r> BaseDrawingContext<'r> {
         let pos = (position.0, position.1);
 
         match p {
-            FieldTile::Virus(c) => self.graphic_virus[c.to_index()].draw(canvas,pos),
+            FieldTile::Virus(c) => (if (self.tick / 4) % 2 == 0 { &self.graphic_virus[c.to_index()] } 
+                                               else { &self.graphic_virus2[c.to_index()] }).draw(canvas,pos),
             FieldTile::Orphan(c) => self.graphic_orphan[c.to_index()].draw(canvas,pos),
             FieldTile::CapLeft(c) => self.graphic_tab_l[c.to_index()].draw(canvas,pos),
             FieldTile::CapRight(c) => self.graphic_tab_r[c.to_index()].draw(canvas,pos),
@@ -123,6 +136,10 @@ impl <'r> BaseDrawingContext<'r> {
     pub fn draw_game<T: RenderTarget>(&mut self, c: &mut Canvas<T>, g: &Game) -> Result<(), String> {
         //self.ctx.draw(c, g)?;
         c.clear();
+        self.tick += 1;
+        if self.tick > 256 {
+            self.tick = 0;
+        }
         self.chrome.draw(c,(0,17));
         //let main = &self.ctx.main;
         self.score.draw_rect(0,0,6,1,Tile{index:0,fg:TRANSPARENT,bg:TRANSPARENT});
@@ -162,7 +179,7 @@ impl <'r> BaseDrawingContext<'r> {
         self.level.draw(c,(board_x + 100, board_y + 164));
         self.graphic_speed[g.config.speed.to_index()].draw(c,(board_x + 140, board_y + 163));
         match g.status {
-            Status::Active | Status::Paused | Status::Reacting | Status::Clearing(_) | Status::Falling(_) | Status::Infecting(_,_) => {
+            Status::Active | Status::Paused | Status::Reacting | Status::Clearing(_) | Status::Falling(_,_) | Status::Infecting(_,_) => {
                 self.draw_imprint(
                     c,
                     &g.current.imprint(),
