@@ -48,6 +48,7 @@ fn elem_name(e : u32) -> &'static str {
         E_WOOD => "Wood",
         E_CLONE => "Clone",
         E_ICE => "Ice",
+        E_ACID => "Acid",
         e if is_clone(e) => "Clone",
         e if is_fire(e) => "Fire",
         _ => "???"
@@ -58,6 +59,7 @@ const E_WATER:u32=20;
 const E_STEAM:u32=22;
 const E_STEAM_CONDENSED:u32=23;
 const E_OIL:u32=25;
+const E_ACID:u32=24;
 const E_SAND:u32=40;
 const E_SPACE:u32=0;
 const E_SALT:u32=30;
@@ -112,6 +114,7 @@ fn weight(element : u32) -> u32 {
         E_SALTWATER => 65000,
         E_LAVA => 70000,
         E_OIL => 55000,
+        E_ACID => 66000,
         E_ASH => 70000,
         E_SAND => 80000,
         E_SALT => 85000,
@@ -132,6 +135,7 @@ fn color_for(element : u32) -> Color {
         E_SAND => YELLOW,
         E_SALT => WHITE,
         E_LAVA => DARK_RED,
+        E_ACID => BRIGHT_GREEN,
         E_STONE => DARKER_GRAY,
         E_SALTWATER => PALE_BLUE, // 
         E_STEAM => rgba(174,199,227,255),
@@ -157,6 +161,7 @@ fn color_for(element : u32) -> Color {
 
 fn alchemy(e1 : u32, e2 : u32) -> (u32,u32) {
     match (e1, e2) {
+        
         (E_SALT,E_WATER) => (E_SALTWATER, E_SALTWATER),
         (E_WATER,E_SALT) => (E_SALTWATER, E_SALTWATER),
         (E_TORCH,E_SPACE) => (E_TORCH,E_FIRE_START),
@@ -231,6 +236,8 @@ fn alchemy(e1 : u32, e2 : u32) -> (u32,u32) {
         (E_WATER,e) if is_ember(e) => (E_STEAM,E_ASH),
         (e,E_SALTWATER) if is_ember(e) => (if rand::thread_rng().gen_range(0,100) >= 90 { E_SALT } else { E_ASH },E_STEAM),
         (E_SALTWATER,e) if is_ember(e) => (E_STEAM,if rand::thread_rng().gen_range(0,100) >= 90 { E_SALT } else { E_ASH }),
+        (E_ACID,e) if (!is_clone(e) && !is_fire(e) && e != E_WALL && e != E_SPACE && e != E_ACID) => (if rand::thread_rng().gen_range(0,100) < 90 { E_SPACE } else { E_ACID}, E_SPACE),
+        (e,E_ACID) if (!is_clone(e) && !is_fire(e) &&  e != E_WALL && e != E_SPACE && e != E_ACID) => (E_SPACE, if rand::thread_rng().gen_range(0,100) < 90 { E_SPACE } else { E_ACID}),
         (a, b) => (a,b)
     }
 } 
@@ -538,18 +545,19 @@ fn main_loop(mut window:Window, sdl_context: &Sdl) {
                                 Menu::new(" ", 132-(7*8), &texture_creator,&tile_set)
                                 .add(MenuItem::new("Oil", 355,Keycode::F4,&texture_creator,&tile_set))
                                 .add(MenuItem::new("Lava", 356,Keycode::F5,&texture_creator,&tile_set))
-                                .add(MenuItem::new("Water", 357,Keycode::F6,&texture_creator,&tile_set))))
+                                .add(MenuItem::new("Acid", 357,Keycode::F6,&texture_creator,&tile_set))
+                                .add(MenuItem::new("Water", 358,Keycode::F7,&texture_creator,&tile_set))))
                             .add(MenuItem::submenu("Solids", &texture_creator, &tile_set, 
                                 Menu::new(" ", 132-(7*8), &texture_creator,&tile_set)
-                                .add(MenuItem::new("Metal", 358,Keycode::F7,&texture_creator,&tile_set))
-                                .add(MenuItem::new("Ice", 359,Keycode::F8,&texture_creator,&tile_set))
-                                .add(MenuItem::new("Torch", 360,Keycode::F9,&texture_creator,&tile_set))
-                                .add(MenuItem::new("Spout", 361,Keycode::F10,&texture_creator,&tile_set))
-                                .add(MenuItem::new("Plant", 362,Keycode::F11,&texture_creator,&tile_set))
-                                .add(MenuItem::new("Wood", 363,Keycode::F12,&texture_creator,&tile_set))
-                                .add(MenuItem::new("Clone", 52,Keycode::Num1,&texture_creator,&tile_set))
-                                .add(MenuItem::new("Wall", 53,Keycode::Num2,&texture_creator,&tile_set))))
-                            .add(MenuItem::new("Fire", 54,Keycode::Num3,&texture_creator,&tile_set))
+                                .add(MenuItem::new("Metal", 359,Keycode::F8,&texture_creator,&tile_set))
+                                .add(MenuItem::new("Ice", 360,Keycode::F9,&texture_creator,&tile_set))
+                                .add(MenuItem::new("Plant", 361,Keycode::F10,&texture_creator,&tile_set))
+                                .add(MenuItem::new("Wood", 362,Keycode::F11,&texture_creator,&tile_set))
+                                .add(MenuItem::new("Torch", 52,Keycode::Num1,&texture_creator,&tile_set))
+                                .add(MenuItem::new("Spout", 53,Keycode::Num2,&texture_creator,&tile_set))
+                                .add(MenuItem::new("Clone", 54,Keycode::Num3,&texture_creator,&tile_set))
+                                .add(MenuItem::new("Wall", 55,Keycode::Num4,&texture_creator,&tile_set))))
+                            .add(MenuItem::new("Fire", 363,Keycode::F12,&texture_creator,&tile_set))
                             .add(MenuItem::new("Erase", 51,Keycode::Num0,&texture_creator,&tile_set))
                             .add(MenuItem::separator(132-(5*8)+2, &texture_creator, &tile_set))                            
                             .add(MenuItem::new("Pause", 17, Keycode::P,&texture_creator,&tile_set))
@@ -621,16 +629,17 @@ fn main_loop(mut window:Window, sdl_context: &Sdl) {
                 Event::KeyDown { keycode: Some(Keycode::F3), .. } => { table.current_elem = E_STONE }
                 Event::KeyDown { keycode: Some(Keycode::F4), .. } => { table.current_elem = E_OIL }  
                 Event::KeyDown { keycode: Some(Keycode::F5), .. } => { table.current_elem = E_LAVA }  
-                Event::KeyDown { keycode: Some(Keycode::F6), .. } => { table.current_elem = E_WATER }  
-                Event::KeyDown { keycode: Some(Keycode::F7), .. } => { table.current_elem = E_METAL }  
-                Event::KeyDown { keycode: Some(Keycode::F8), .. } => { table.current_elem = E_ICE }  
-                Event::KeyDown { keycode: Some(Keycode::F9), .. } => { table.current_elem = E_TORCH }  
-                Event::KeyDown { keycode: Some(Keycode::F10), .. } => { table.current_elem = E_SPOUT }  
-                Event::KeyDown { keycode: Some(Keycode::F11), .. } => { table.current_elem = E_PLANT }  
-                Event::KeyDown { keycode: Some(Keycode::F12), .. } => { table.current_elem = E_WOOD }  
-                Event::KeyDown { keycode: Some(Keycode::Num1), .. } => { table.current_elem = E_CLONE }  
-                Event::KeyDown { keycode: Some(Keycode::Num2), .. } => { table.current_elem = E_WALL }  
-                Event::KeyDown { keycode: Some(Keycode::Num3), .. } => { table.current_elem = E_FIRE_START }  
+                Event::KeyDown { keycode: Some(Keycode::F6), .. } => { table.current_elem = E_ACID }  
+                Event::KeyDown { keycode: Some(Keycode::F7), .. } => { table.current_elem = E_WATER }  
+                Event::KeyDown { keycode: Some(Keycode::F8), .. } => { table.current_elem = E_METAL }  
+                Event::KeyDown { keycode: Some(Keycode::F9), .. } => { table.current_elem = E_ICE }  
+                Event::KeyDown { keycode: Some(Keycode::F10), .. } => { table.current_elem = E_PLANT }  
+                Event::KeyDown { keycode: Some(Keycode::F11), .. } => { table.current_elem = E_WOOD }  
+                Event::KeyDown { keycode: Some(Keycode::Num1), .. } => { table.current_elem = E_TORCH }  
+                Event::KeyDown { keycode: Some(Keycode::Num2), .. } => { table.current_elem = E_SPOUT }  
+                Event::KeyDown { keycode: Some(Keycode::Num3), .. } => { table.current_elem = E_CLONE }  
+                Event::KeyDown { keycode: Some(Keycode::Num4), .. } => { table.current_elem = E_WALL }  
+                Event::KeyDown { keycode: Some(Keycode::F12), .. } => { table.current_elem = E_FIRE_START }  
                 Event::KeyDown { keycode: Some(Keycode::Num0), .. } => { table.current_elem = E_SPACE }  
                 Event::KeyDown { keycode: Some(Keycode::R), .. } => { table.replacing = !table.replacing }
                 Event::KeyDown { keycode: Some(Keycode::RightBracket), .. } => { table.brush_size = std::cmp::min(table.brush_size + 2, 20) }  
