@@ -229,6 +229,8 @@ fn alchemy(e1 : u32, e2 : u32) -> (u32,u32) {
         (E_SPACE,e)  if is_ember(e) => (e - 1, e-1),
         (e,E_WATER) if is_ember(e) => (E_ASH,E_STEAM),
         (E_WATER,e) if is_ember(e) => (E_STEAM,E_ASH),
+        (e,E_SALTWATER) if is_ember(e) => (if rand::thread_rng().gen_range(0,100) >= 90 { E_SALT } else { E_ASH },E_STEAM),
+        (E_SALTWATER,e) if is_ember(e) => (E_STEAM,if rand::thread_rng().gen_range(0,100) >= 90 { E_SALT } else { E_ASH }),
         (a, b) => (a,b)
     }
 } 
