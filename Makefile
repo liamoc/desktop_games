@@ -1,4 +1,6 @@
-all:: upto11 allhands archaeologist solitude soyuz corbynball cylons taipan vermin gatchi vexation jackpot box-factory brooklyn ishi mageja micro-chess peggy tainan grenadier bellum rx
+all:: upto11 allhands archaeologist solitude soyuz corbynball cylons taipan vermin gatchi vexation jackpot box-factory brooklyn ishi mageja micro-chess peggy tainan grenadier bellum rx sand
+sand::
+	./build_mac.sh sand mep-sand Sand
 rx::
 	./build_mac.sh rx mep-rx Rx
 bellum::

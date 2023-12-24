@@ -116,6 +116,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "bresenham"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bfc1116225f66d2ea341a26503f83a6b1205070a6f7199ce1f1550ead91f6fd7"
+
+[[package]]
 name = "brooklyn"
 version = "0.1.0"
 dependencies = [
@@ -605,6 +611,17 @@ dependencies = [
  "app_dirs",
  "byteorder",
  "lazy_static",
+ "rand",
+ "sdl2",
+ "tesserae",
+ "utils",
+]
+
+[[package]]
+name = "sand"
+version = "0.1.0"
+dependencies = [
+ "bresenham",
  "rand",
  "sdl2",
  "tesserae",

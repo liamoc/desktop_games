@@ -1,0 +1,30 @@
+[package]
+name = "sand"
+version = "0.1.0"
+authors = ["Liam O’Connor <liamoc@cse.unsw.edu.au>"]
+edition = "2018"
+description = "A falling sand game."
+
+[dependencies]
+tesserae="0.3.1"
+rand="0.7.3"
+bresenham="*"
+[dependencies.sdl2]
+version = "0.33.0"
+default-features = false
+features = ["use_mac_framework"]
+
+[dependencies.utils]
+path = "../utils"
+
+[package.metadata.bundle]
+name="Sand"
+identifier="net.liamoc.sand"
+icon=["icon@2x.png"]
+version="0.1"
+copyright="Liam O'Connor 2023"
+category="public.app-category.puzzle-games"
+short_description="A Falling Sand game"
+osx_minimum_system_version="10.13.3"
+osx_frameworks=["SDL2"]
+deb_depends=["libsdl2-2.0-0 (>= 2.0.9)"]
