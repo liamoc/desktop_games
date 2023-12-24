@@ -74,6 +74,9 @@ fn random_element() -> u32 {
 fn is_wall(element : u32) -> bool {
     element >= E_WALL
 }
+fn is_gas(element : u32) -> bool {
+    element == E_SPACE || element == E_STEAM || is_fire(element) || element == E_STEAM_CONDENSED
+}
 fn is_fluid(element : u32) -> bool {
     element <= 25 && element > 0
 }
@@ -88,15 +91,15 @@ fn is_permeable(e1 : u32, e2 : u32) -> bool {
 }
 fn weight(element : u32) -> u32 {
     match element {
-        e if is_wall(e) => 20000,
-        E_WATER => 17000,
-        E_SALTWATER => 17500,
-        E_LAVA => 18000,
-        E_OIL => 16000,
-        E_SAND => 18000,
-        E_SALT => 18500,
+        e if is_wall(e) => 100000,
+        E_WATER => 60000,
+        E_SALTWATER => 65000,
+        E_LAVA => 70000,
+        E_OIL => 55000,
+        E_SAND => 80000,
+        E_SALT => 85000,
         E_SPACE => 10000,
-        E_STONE => 19999,
+        E_STONE => 90000,
         E_STEAM => 5000,
         E_STEAM_CONDENSED => 5000,
 
@@ -140,14 +143,14 @@ fn alchemy(e1 : u32, e2 : u32) -> (u32,u32) {
         (E_SALTWATER, E_METAL) if rand::thread_rng().gen_range(0,100) < 5 => (E_SALTWATER, E_SAND),
         (E_METAL, E_WATER) if rand::thread_rng().gen_range(0,100) < 2  => (E_SAND, E_WATER),
         (E_METAL, E_SALTWATER) if rand::thread_rng().gen_range(0,100) < 5  => (E_SAND, E_SALTWATER),
-        (E_LAVA, E_STONE) if rand::thread_rng().gen_range(0,100) < 5  => (E_LAVA,E_LAVA),
-        (E_STONE, E_LAVA) if rand::thread_rng().gen_range(0,100) < 5  => (E_LAVA,E_LAVA),
+        (E_LAVA, E_STONE) if rand::thread_rng().gen_range(0,100) < 1  => (E_LAVA,E_LAVA),
+        (E_STONE, E_LAVA) if rand::thread_rng().gen_range(0,100) < 1  => (E_LAVA,E_LAVA),
         (E_METAL, E_LAVA) if rand::thread_rng().gen_range(0,100) < 1  => (E_LAVA,E_LAVA),
         (E_LAVA, E_METAL) if rand::thread_rng().gen_range(0,100) < 1  => (E_LAVA,E_LAVA),
-        (E_SALT, E_LAVA) if rand::thread_rng().gen_range(0,100) < 2  => (E_LAVA,E_LAVA),
-        (E_LAVA, E_SALT) if rand::thread_rng().gen_range(0,100) < 2  => (E_LAVA,E_LAVA),
-        (E_SAND, E_LAVA) if rand::thread_rng().gen_range(0,100) < 20  => (E_LAVA,E_LAVA),
-        (E_LAVA, E_SAND) if rand::thread_rng().gen_range(0,100) < 20  => (E_LAVA,E_LAVA),
+        (E_SALT, E_LAVA) if rand::thread_rng().gen_range(0,100) < 3  => (E_LAVA,E_LAVA),
+        (E_LAVA, E_SALT) if rand::thread_rng().gen_range(0,100) < 3  => (E_LAVA,E_LAVA),
+        (E_SAND, E_LAVA) if rand::thread_rng().gen_range(0,100) < 5  => (E_LAVA,E_LAVA),
+        (E_LAVA, E_SAND) if rand::thread_rng().gen_range(0,100) < 5  => (E_LAVA,E_LAVA),
         (E_LAVA, E_OIL) if rand::thread_rng().gen_range(0,100) < 80  => (E_LAVA,E_FIRE_START),
         (E_OIL, E_LAVA) if rand::thread_rng().gen_range(0,100) < 80  => (E_FIRE_START,E_LAVA),
         (E_LAVA, E_PLANT) if rand::thread_rng().gen_range(0,100) < 80  => (E_LAVA,E_FIRE_START),
@@ -290,12 +293,26 @@ impl World {
             if !is_permeable(neigh[p1[i] as usize], neigh[i])  {
                 p1[i] = i as u8;
             } else {
-               let diff : i32 = weight(neigh[p1[i] as usize]) as i32 - (weight(neigh[i])) as i32;
-               let n : u32 = rand::thread_rng().gen_range(0,weight(E_WALL));
-               if n * 3 >= (diff.abs() as u32) * 7 {
-                  p1[p1[i] as usize] = p1[i];
-                  p1[i] = i as u8;
-               }
+                let e1 = neigh[p1[i] as usize];
+                let e2 = neigh[i];
+
+                let mut diff : i32 = weight(e1) as i32 - weight(e2) as i32;
+                let n : u32 = if is_gas(e1) && is_gas(e2) {
+                    rand::thread_rng().gen_range(0,weight(E_SPACE))
+                } else if is_gas(e1) && is_fluid(e2) || is_gas(e2) && is_fluid(e1) {
+                    rand::thread_rng().gen_range(0,weight(E_LAVA) + 1000 - weight(E_SPACE))
+                } else if is_gas(e1) || is_gas(e2) {
+                    rand::thread_rng().gen_range(0,weight(E_STONE) - weight(E_SPACE))
+                } else if is_fluid(e1) && is_fluid(e2) {
+                    rand::thread_rng().gen_range(0,weight(E_LAVA) - weight(E_OIL))
+                } else {
+                    rand::thread_rng().gen_range(0,weight(E_STONE) - weight(E_OIL))
+                };
+                 
+                if n >= diff.abs() as u32 {
+                    p1[p1[i] as usize] = p1[i];
+                    p1[i] = i as u8;
+                }
             }
         }
         p1
