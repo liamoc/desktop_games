@@ -45,6 +45,10 @@ fn elem_name(e : u32) -> &'static str {
         E_SPOUT => "Spout",
         E_TORCH => "Torch",
         E_PLANT => "Plant",
+        E_WOOD => "Wood",
+        E_CLONE => "Clone",
+        E_ICE => "Ice",
+        e if is_clone(e) => "Clone",
         e if is_fire(e) => "Fire",
         _ => "???"
     }
@@ -57,15 +61,21 @@ const E_OIL:u32=25;
 const E_SAND:u32=40;
 const E_SPACE:u32=0;
 const E_SALT:u32=30;
+const E_ASH:u32 = 32;
 const E_STONE:u32=31;
 const E_SALTWATER:u32=21;
 const E_LAVA:u32=10;
+const E_WOOD:u32 = 206;
 const E_FIRE_START:u32=50;
 const E_FIRE_END:u32=59;
 const E_METAL:u32= 202;
 const E_SPOUT:u32=204;
 const E_TORCH:u32 = 201;
 const E_PLANT:u32 = 203;
+const E_ICE:u32 = 205;
+const E_EMBER:u32 = 300;
+const E_EMBER_END:u32 = 308;
+const E_CLONE:u32 = 0x0001_0000;
 
 fn random_element() -> u32 {
     let elements : Vec<u32> = vec![E_WALL,E_WATER,E_STEAM,E_STEAM_CONDENSED,E_SAND,E_SALT,E_SALTWATER, E_FIRE_START, E_FIRE_START+1,E_FIRE_START+2,E_FIRE_START+3,E_FIRE_START+4,E_FIRE_START+5,E_FIRE_START+6,E_FIRE_START+7,E_FIRE_START+8,E_FIRE_END,E_TORCH,E_SPACE];
@@ -73,6 +83,12 @@ fn random_element() -> u32 {
 }
 fn is_wall(element : u32) -> bool {
     element >= E_WALL
+}
+fn is_ember(element : u32) -> bool {
+    element >= E_EMBER && element <= E_EMBER_END
+}
+fn is_clone(element : u32) -> bool {
+    element & E_CLONE != 0
 }
 fn is_gas(element : u32) -> bool {
     element == E_SPACE || element == E_STEAM || is_fire(element) || element == E_STEAM_CONDENSED
@@ -96,6 +112,7 @@ fn weight(element : u32) -> u32 {
         E_SALTWATER => 65000,
         E_LAVA => 70000,
         E_OIL => 55000,
+        E_ASH => 70000,
         E_SAND => 80000,
         E_SALT => 85000,
         E_SPACE => 10000,
@@ -122,10 +139,17 @@ fn color_for(element : u32) -> Color {
         E_TORCH => PALE_ORANGE,
         E_OIL => DARK_YELLOW,
         E_SPOUT => BLUE,
+        E_ICE => rgba(204,229,255,255),
         E_PLANT => GREEN,
         E_SPACE => CHARCOAL,
+        E_WOOD => BROWN,
+        E_ASH => DARK_CHARCOAL,
+        e if is_clone(e) => LIGHT_BROWN,
         e if is_fire(e) => {
             rgba(255,(((e - E_FIRE_START) * 255) / (E_FIRE_END - E_FIRE_START)) as u8, 10,255)
+        }
+        e if is_ember(e) => {
+            rgba(255,(((e - E_EMBER) * 255) / 8) as u8, 10,255)
         }
         _ => GREEN
     }
@@ -155,22 +179,34 @@ fn alchemy(e1 : u32, e2 : u32) -> (u32,u32) {
         (E_OIL, E_LAVA) if rand::thread_rng().gen_range(0,100) < 80  => (E_FIRE_START,E_LAVA),
         (E_LAVA, E_PLANT) if rand::thread_rng().gen_range(0,100) < 80  => (E_LAVA,E_FIRE_START),
         (E_PLANT, E_LAVA) if rand::thread_rng().gen_range(0,100) < 80  => (E_FIRE_START,E_LAVA),
+        (E_WATER, E_ICE) if rand::thread_rng().gen_range(0,100) < 2  => (E_ICE, E_ICE),
+        (E_ICE, E_WATER) if rand::thread_rng().gen_range(0,100) < 2  => (E_ICE, E_ICE),
         (E_WATER,E_LAVA) => (E_STEAM,E_STONE),
         (E_LAVA,E_WATER) => (E_STONE,E_STEAM),
-        (E_SALTWATER,E_LAVA) => if rand::thread_rng().gen_range(0,100) < 50 { (E_STEAM,E_STONE) } else {(E_STEAM,E_SALT) },
-        (E_LAVA,E_SALTWATER) => if rand::thread_rng().gen_range(0,100) < 50 { (E_STONE,E_STEAM) } else {(E_SALT,E_STEAM) },
+        (E_ICE,E_LAVA) => (E_WATER,E_LAVA),
+        (E_LAVA,E_ICE) => (E_LAVA,E_WATER),
+        (E_ASH,E_LAVA) => (E_FIRE_START,E_LAVA),
+        (E_LAVA,E_ASH) => (E_LAVA,E_FIRE_START),
         (E_PLANT,E_WATER) => (E_PLANT,E_PLANT),
         (E_WATER,E_PLANT) => (E_PLANT,E_PLANT),
+        (E_WOOD, f) if is_fire(f) => (E_EMBER_END,E_SPACE),
+        (f, E_WOOD) if is_fire(f) => (E_SPACE,E_EMBER_END),
+        (e,E_ICE) if is_fire(e) => (E_SPACE,E_WATER),
+        (E_ICE,e) if is_fire(e) => (E_WATER,E_SPACE),
+        (E_SALTWATER,E_LAVA) => if rand::thread_rng().gen_range(0,100) < 50 { (E_STEAM,E_STONE) } else {(E_STEAM,E_SALT) },
+        (E_LAVA,E_SALTWATER) => if rand::thread_rng().gen_range(0,100) < 50 { (E_STONE,E_STEAM) } else {(E_SALT,E_STEAM) },
+        (E_LAVA,E_WOOD) => (E_LAVA,E_EMBER_END),
+        (E_WOOD,E_LAVA) => (E_EMBER_END,E_LAVA),
         (E_PLANT,a) if is_fire(a) && rand::thread_rng().gen_range(0,100) < 30  => {
             let r = rand::thread_rng().gen_range(0,100);
              if r < 20 { (E_FIRE_START,E_FIRE_START) } 
-             else if r > 80 { (E_FIRE_START,E_SAND) }
+             else if r > 80 { (E_FIRE_START,E_ASH) }
              else { (E_FIRE_START,E_SPACE) }                
         }
         (a, E_PLANT) if is_fire(a) && rand::thread_rng().gen_range(0,100) < 30  => {
             let r = rand::thread_rng().gen_range(0,100);
              if r < 20 { (E_FIRE_START,E_FIRE_START) } 
-             else if r > 80 { (E_SAND,E_FIRE_START) }
+             else if r > 80 { (E_ASH,E_FIRE_START) }
              else { (E_SPACE,E_FIRE_START) }
         }
         (a, E_OIL) if is_fire(a) => (E_FIRE_START, E_FIRE_START),
@@ -181,6 +217,18 @@ fn alchemy(e1 : u32, e2 : u32) -> (u32,u32) {
         (a, E_SALTWATER) if is_fire(a) => (E_SALT, E_STEAM),
         (a, E_STEAM) if is_wall(a) || a == E_STEAM_CONDENSED => (a, E_STEAM_CONDENSED),
         (E_STEAM,a) if is_wall(a) || a == E_STEAM_CONDENSED => (E_STEAM_CONDENSED,a),
+        (E_CLONE,a) if a != E_CLONE && a != E_SPACE && a != E_WALL => (E_CLONE | a, a),
+        (a,E_CLONE) if a != E_CLONE && a != E_SPACE && a != E_WALL => (a, E_CLONE | a),
+        (c, E_SPACE) if is_clone(c) => (c, c & !E_CLONE),
+        (E_SPACE, c) if is_clone(c) => (c & !E_CLONE, c),
+        (E_EMBER,E_WOOD) => (E_EMBER,E_EMBER_END),
+        (E_WOOD,E_EMBER) => (E_EMBER_END,E_EMBER),
+        (E_EMBER,E_SPACE) => (E_FIRE_START, if rand::thread_rng().gen_range(0,100) < 90 { E_SPACE } else { E_ASH }),
+        (e,E_SPACE)  if is_ember(e) => (e - 1, e-1),
+        (E_SPACE,E_EMBER) => (if rand::thread_rng().gen_range(0,100) < 90 { E_SPACE } else { E_ASH },E_FIRE_START),
+        (E_SPACE,e)  if is_ember(e) => (e - 1, e-1),
+        (e,E_WATER) if is_ember(e) => (E_ASH,E_STEAM),
+        (E_WATER,e) if is_ember(e) => (E_STEAM,E_ASH),
         (a, b) => (a,b)
     }
 } 
@@ -191,6 +239,14 @@ fn age(e1 : u32) -> u32 {
                 E_SPACE
             } else {
                 e1 + 1
+            }
+        } else { e1 }
+    } else if is_ember(e1) {
+        if rand::thread_rng().gen_range(0,100) > 50 {
+            if e1 == E_EMBER {
+                if rand::thread_rng().gen_range(0,100) < 90 { E_SPACE } else { E_ASH }
+            } else {
+                e1 - 1
             }
         } else { e1 }
     } else {
@@ -296,7 +352,7 @@ impl World {
                 let e1 = neigh[p1[i] as usize];
                 let e2 = neigh[i];
 
-                let mut diff : i32 = weight(e1) as i32 - weight(e2) as i32;
+                let diff : i32 = weight(e1) as i32 - weight(e2) as i32;
                 let n : u32 = if is_gas(e1) && is_gas(e2) {
                     rand::thread_rng().gen_range(0,weight(E_SPACE))
                 } else if is_gas(e1) && is_fluid(e2) || is_gas(e2) && is_fluid(e1) {
@@ -484,12 +540,15 @@ fn main_loop(mut window:Window, sdl_context: &Sdl) {
                             .add(MenuItem::submenu("Solids", &texture_creator, &tile_set, 
                                 Menu::new(" ", 132-(7*8), &texture_creator,&tile_set)
                                 .add(MenuItem::new("Metal", 358,Keycode::F7,&texture_creator,&tile_set))
-                                .add(MenuItem::new("Torch", 359,Keycode::F8,&texture_creator,&tile_set))
-                                .add(MenuItem::new("Spout", 360,Keycode::F9,&texture_creator,&tile_set))
-                                .add(MenuItem::new("Plant", 361,Keycode::F10,&texture_creator,&tile_set))
-                                .add(MenuItem::new("Wall", 362,Keycode::F11,&texture_creator,&tile_set))))
-                            .add(MenuItem::new("Fire", 52,Keycode::Num1,&texture_creator,&tile_set))
-                            .add(MenuItem::new("Erase", 363,Keycode::F12,&texture_creator,&tile_set))
+                                .add(MenuItem::new("Ice", 359,Keycode::F8,&texture_creator,&tile_set))
+                                .add(MenuItem::new("Torch", 360,Keycode::F9,&texture_creator,&tile_set))
+                                .add(MenuItem::new("Spout", 361,Keycode::F10,&texture_creator,&tile_set))
+                                .add(MenuItem::new("Plant", 362,Keycode::F11,&texture_creator,&tile_set))
+                                .add(MenuItem::new("Wood", 363,Keycode::F12,&texture_creator,&tile_set))
+                                .add(MenuItem::new("Clone", 52,Keycode::Num1,&texture_creator,&tile_set))
+                                .add(MenuItem::new("Wall", 53,Keycode::Num2,&texture_creator,&tile_set))))
+                            .add(MenuItem::new("Fire", 54,Keycode::Num3,&texture_creator,&tile_set))
+                            .add(MenuItem::new("Erase", 51,Keycode::Num0,&texture_creator,&tile_set))
                             .add(MenuItem::separator(132-(5*8)+2, &texture_creator, &tile_set))                            
                             .add(MenuItem::new("Pause", 17, Keycode::P,&texture_creator,&tile_set))
                             .add(MenuItem::new("Restart",15, Keycode::N,&texture_creator,&tile_set))
@@ -562,12 +621,15 @@ fn main_loop(mut window:Window, sdl_context: &Sdl) {
                 Event::KeyDown { keycode: Some(Keycode::F5), .. } => { table.current_elem = E_LAVA }  
                 Event::KeyDown { keycode: Some(Keycode::F6), .. } => { table.current_elem = E_WATER }  
                 Event::KeyDown { keycode: Some(Keycode::F7), .. } => { table.current_elem = E_METAL }  
-                Event::KeyDown { keycode: Some(Keycode::F8), .. } => { table.current_elem = E_TORCH }  
-                Event::KeyDown { keycode: Some(Keycode::F9), .. } => { table.current_elem = E_SPOUT }  
-                Event::KeyDown { keycode: Some(Keycode::F10), .. } => { table.current_elem = E_PLANT }  
-                Event::KeyDown { keycode: Some(Keycode::F11), .. } => { table.current_elem = E_WALL }  
-                Event::KeyDown { keycode: Some(Keycode::Num1), .. } => { table.current_elem = E_FIRE_START }  
-                Event::KeyDown { keycode: Some(Keycode::F12), .. } => { table.current_elem = E_SPACE }  
+                Event::KeyDown { keycode: Some(Keycode::F8), .. } => { table.current_elem = E_ICE }  
+                Event::KeyDown { keycode: Some(Keycode::F9), .. } => { table.current_elem = E_TORCH }  
+                Event::KeyDown { keycode: Some(Keycode::F10), .. } => { table.current_elem = E_SPOUT }  
+                Event::KeyDown { keycode: Some(Keycode::F11), .. } => { table.current_elem = E_PLANT }  
+                Event::KeyDown { keycode: Some(Keycode::F12), .. } => { table.current_elem = E_WOOD }  
+                Event::KeyDown { keycode: Some(Keycode::Num1), .. } => { table.current_elem = E_CLONE }  
+                Event::KeyDown { keycode: Some(Keycode::Num2), .. } => { table.current_elem = E_WALL }  
+                Event::KeyDown { keycode: Some(Keycode::Num3), .. } => { table.current_elem = E_FIRE_START }  
+                Event::KeyDown { keycode: Some(Keycode::Num0), .. } => { table.current_elem = E_SPACE }  
                 Event::KeyDown { keycode: Some(Keycode::R), .. } => { table.replacing = !table.replacing }
                 Event::KeyDown { keycode: Some(Keycode::RightBracket), .. } => { table.brush_size = std::cmp::min(table.brush_size + 2, 20) }  
                 Event::KeyDown { keycode: Some(Keycode::LeftBracket), .. } => { table.brush_size = std::cmp::max(table.brush_size as i32 - 2, 1) as usize }
